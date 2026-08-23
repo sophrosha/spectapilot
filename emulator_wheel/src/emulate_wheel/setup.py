@@ -2,7 +2,7 @@ import pygame
 from pathlib import Path as p
 
 class SetupEmuWheel:
-    def setup_app(self):
+    def _setup_app(self):
         self.screen = pygame.display.set_mode(
             (self.screen_width, self.screen_height)
         )

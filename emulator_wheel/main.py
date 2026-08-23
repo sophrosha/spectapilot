@@ -16,14 +16,14 @@ class EmuSWheel(SetupEmuWheel, RunEmuWheel, UpdaterEmuWheel, EventsEmuWheel):
         self.title = title
         self.data_queue = data_queue
         pygame.init()
-        self.setup_app()
+        self._setup_app()
 
 class SocketEmuSWheel(ListenLoopSocketEmuWheel, SetupSocketEmuWheel):
     def __init__(self, data_queue, host="127.0.0.1", port=7777):
         self.host = host
         self.port = port
         self.data_queue = data_queue
-        self.setup()
+        self._setup()
 
 if __name__ == "__main__":
     shared_queue = queue.Queue()
