@@ -1,0 +1,9 @@
+{
+  "name": "SpectAPilot",
+  "description": "sending steering telemetry in autopilot mode to handler",
+  "version": "1.0.0",
+  "authors": [ "sophrosha" ],
+  "licence": "MIT",
+  "dependencies": [],
+  "tags": [ "telemetry" ]
+}
