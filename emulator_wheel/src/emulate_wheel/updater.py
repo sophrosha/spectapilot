@@ -24,6 +24,5 @@ class UpdaterEmuWheel:
         
     def _update_wheel(self):
         target_angle = self.game_angle
-        speed = 2.5
-        if self.visual_angle < target_angle: self.visual_angle = min(self.visual_angle + speed, target_angle)
-        elif self.visual_angle > target_angle: self.visual_angle = max(self.visual_angle - speed, target_angle)
+        if self.visual_angle < target_angle: self.visual_angle = min(self.visual_angle + self.speed, target_angle)
+        elif self.visual_angle > target_angle: self.visual_angle = max(self.visual_angle - self.speed, target_angle)
