@@ -13,6 +13,7 @@ class SetupEmuWheel:
         self.visual_angle = 0
         self.change_rotate_default = 2
         self.font_main = pygame.font.Font(None, 26)
+        self.speed = 2.5
         
         self.clock = pygame.time.Clock()
         self.fps = 100
