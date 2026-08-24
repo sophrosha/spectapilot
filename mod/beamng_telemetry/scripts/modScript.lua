@@ -1,0 +1,1 @@
+extensions.load("spectapilot_spectapilot")
