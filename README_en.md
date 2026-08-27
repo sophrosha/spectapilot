@@ -1,5 +1,6 @@
-# <center> <font color="FF6600">Spect</font>APilot (<font color="FF6600">Spectator Auto</font>Pilot)</center>
-<center>[RU](README.md) | [EN](README_en.md) </center>
+# <font color="FF6600">Spect</font>APilot (<font color="FF6600">Spectator Auto</font>Pilot)
+
+[RU](https://github.com/sophrosha/spectapilot/blob/main/README.md) | [EN](https://github.com/sophrosha/spectapilot/blob/main/README_en.md)
 
 ## What is it
 A project that implements transfer of steering telemetry to a real physical steering wheel with FFB support from BeamNG.
