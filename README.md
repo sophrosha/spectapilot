@@ -1,5 +1,6 @@
-# <center> <font color="FF6600">Spect</font>APilot (<font color="FF6600">Spectator Auto</font>Pilot)</center>
-<center>[RU](README.md) | [EN](README_en.md) </center>
+# <font color="FF6600">Spect</font>APilot (<font color="FF6600">Spectator Auto</font>Pilot)
+
+[RU](https://github.com/sophrosha/spectapilot/blob/main/README.md) | [EN](https://github.com/sophrosha/spectapilot/blob/main/README_en.md)
 
 ## Что это
 Проект реализующий передачу телеметрии руля в настоящий физический руль с поддержкой FFB из Beamng. 
@@ -33,7 +34,7 @@
 - дополнительные параметры скорости передачи телеметрии;
 - Включение через бинд клавиши.
 #### Демонстрация
-Coming soon
+https://github.com/user-attachments/assets/21032e16-1a80-4810-b41e-be5dafd31e9b
 ## Скоро будет разрабатываться
 ### Обработчик
 Передача сухих данных телеметрии из игры в руль с интерполяцией, и другими обработками значений для плавного поворота руля.
