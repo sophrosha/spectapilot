@@ -6,7 +6,7 @@ A project that implements transfer of steering telemetry to a real physical stee
 
 The goal is to implement an autopilot experience without leaving home, having only a steering wheel with DD/FFB support.
 ## Project structure
-![plann](assets/plan.png)
+![plann](assets/plan_en.png)
 
 ## What's included in the project
 **Currently 2 out of 3 project types are implemented.** A mod for the game that captures steering angle telemetry, connects via socket and, when autopilot is enabled, transmits them to a ready-made steering wheel emulator.
