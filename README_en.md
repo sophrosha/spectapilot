@@ -34,7 +34,7 @@ The goal of this mod is to transmit steering degree telemetry to an open socket 
 - Additional telemetry transmission rate parameters;
 - Enable via key bind.
 #### Demonstration
-Coming soon
+https://github.com/user-attachments/assets/21032e16-1a80-4810-b41e-be5dafd31e9b
 ## Will be developed soon
 ### Processor
 Transmission of raw telemetry data from the game to the steering wheel with interpolation and other value processing for smooth steering rotation.
