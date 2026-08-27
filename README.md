@@ -1,5 +1,6 @@
-# <center> <font color="FF6600">Spect</font>APilot (<font color="FF6600">Spectator Auto</font>Pilot)</center>
-<center>[RU](README.md) | [EN](README_en.md) </center>
+# <font color="FF6600">Spect</font>APilot (<font color="FF6600">Spectator Auto</font>Pilot)
+
+[RU](https://github.com/sophrosha/spectapilot/blob/main/README.md) | [EN](https://github.com/sophrosha/spectapilot/blob/main/README_en.md)
 
 ## Что это
 Проект реализующий передачу телеметрии руля в настоящий физический руль с поддержкой FFB из Beamng. 
