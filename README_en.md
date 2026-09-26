@@ -23,8 +23,6 @@ To verify the operation of steering wheel rotations and accurate telemetry trans
 - Stack: Python, Pygame-CE;
 - Steering rotations via H L binds;
 - Presence of a receiving socket on port 7777.
-#### Goals
-- To improve the return of the steering wheel to its original position when no packets are transmitted, to configure IP and socket port via input in the emulator menu.
 #### Demonstration
 ![Demonstration_wheel_emu](assets/demonstration_wheel_emulator.png)
 ### Mod
