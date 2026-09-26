@@ -1,0 +1,8 @@
+{
+  "spectapilot_toggleAP": {
+    "cat": "gameplay",
+    "title": "SpectAPilot: Toggle Autopilot",
+    "desc": "Enable autopilot with steering wheel",
+    "onDown": "extensions.spectapilot_spectapilot.toggleAP()"
+  }
+}
