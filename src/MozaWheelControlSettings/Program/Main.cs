@@ -10,6 +10,7 @@ internal static partial class Program
     {
         Application.EnableVisualStyles();
         Application.SetCompatibleTextRenderingDefault(false);
+        if (!Init()) return;
         Application.Run(new MainForm());
     }
 }

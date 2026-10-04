@@ -1,5 +1,6 @@
 {
   "debug": false,
+  "uiLanguage": "ru",
   "smooth": true,
   "smoothTimeMs": 500,
   "maxTorque": 100.0,
