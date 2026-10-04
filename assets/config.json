@@ -1,4 +1,5 @@
 {
+  "debug": false,
   "smooth": true,
   "smoothTimeMs": 500,
   "maxTorque": 100.0,
