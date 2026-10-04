@@ -7,22 +7,25 @@
     <Nullable>enable</Nullable>
     <RootNamespace>MozaWheelControl</RootNamespace>
     <AssemblyName>MozaWheelControl</AssemblyName>
-    <!-- Руль x64: MOZA_API_C.dll и MOZA_SDK.dll только 64-битные -->
+    <!-- The wheel DLLs (MOZA_API_C.dll / MOZA_SDK.dll) are 64-bit only. -->
     <PlatformTarget>x64</PlatformTarget>
     <Prefer32Bit>false</Prefer32Bit>
     <RollForward>Major</RollForward>
     <InvariantGlobalization>false</InvariantGlobalization>
+    <!-- Sources are listed explicitly: both projects share the repository root,
+         so default globbing would pull the other project's files in. This also
+         keeps sdk\SDK_CSharp\example\ShifterTest.cs (top-level statements) out
+         of the build, which the old Compile Remove="sdk\**" used to do. -->
+    <EnableDefaultItems>false</EnableDefaultItems>
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- В папке sdk лежит свой пример (ShifterTest.cs) с top-level statements —
-         не даём MSBuild включить его в наш проект. -->
-    <Compile Remove="sdk\**\*.cs" />
+    <Compile Include="src\MozaWheelControl\**\*.cs" />
   </ItemGroup>
 
   <ItemGroup>
-    <!-- C# обёртка Moza SDK (целится в .NET Framework 4.8 — с .NET 8 совместима,
-         т.к. ссылается только на mscorlib). -->
+    <!-- C# wrapper of the Moza SDK (targets .NET Framework 4.8; loads on .NET 8
+         because it only references mscorlib). -->
     <Reference Include="MOZA_API_CSharp">
       <HintPath>sdk\SDK_CSharp\x64\MOZA_API_CSharp.dll</HintPath>
       <Private>true</Private>
@@ -30,11 +33,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Нативные зависимости кладём рядом с exe (иначе DllNotFoundException) -->
+    <!-- Native dependencies must sit next to the exe (else DllNotFoundException). -->
     <None Include="sdk\SDK_CSharp\x64\MOZA_API_C.dll" Link="MOZA_API_C.dll" CopyToOutputDirectory="PreserveNewest" />
     <None Include="sdk\SDK_CSharp\x64\MOZA_SDK.dll" Link="MOZA_SDK.dll" CopyToOutputDirectory="PreserveNewest" />
-    <!-- Дефолтный конфиг рядом с exe -->
-    <None Include="config.json" Link="config.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Default config next to the exe. -->
+    <None Include="assets\config.json" Link="config.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

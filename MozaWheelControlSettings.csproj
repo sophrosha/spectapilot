@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>MozaWheelControlSettings</RootNamespace>
+    <AssemblyName>MozaWheelControlSettings</AssemblyName>
+    <!-- Same bitness as the console app for consistency. -->
+    <PlatformTarget>x64</PlatformTarget>
+    <Prefer32Bit>false</Prefer32Bit>
+    <!-- Both projects share the repository root; sources are listed explicitly
+         so the default globbing does not cross between them. -->
+    <EnableDefaultItems>false</EnableDefaultItems>
+    <!-- Exe icon; applied only when assets/icon.ico exists. -->
+    <ApplicationIcon Condition="Exists('assets\icon.ico')">assets\icon.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="src\MozaWheelControlSettings\**\*.cs" />
+  </ItemGroup>
+
+</Project>
