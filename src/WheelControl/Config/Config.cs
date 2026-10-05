@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 
 namespace WheelControl;
 
-// Application configuration. config.json sits next to the exe.
+// Application configuration. config.json sits in Assets\ next to the exe.
 // Loaded at startup; if the file is missing — created with default values.
 public sealed class Config
 {
@@ -101,8 +101,8 @@ public sealed class Config
         PropertyNameCaseInsensitive = true,
     };
 
-    // Path to config.json (the exe folder).
-    public static string FilePath => Path.Combine(AppContext.BaseDirectory, "config.json");
+    // Path to config.json (the Assets folder next to the exe).
+    public static string FilePath => Path.Combine(AppContext.BaseDirectory, "Assets", "config.json");
 
     // Load the config; if missing or broken — create/return the defaults.
     public static Config Load()

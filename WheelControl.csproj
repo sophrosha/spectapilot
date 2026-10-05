@@ -37,11 +37,14 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Native dependencies must sit next to the exe (else DllNotFoundException). -->
-    <None Include="sdk\SDK_CSharp\x64\MOZA_API_C.dll" Link="MOZA_API_C.dll" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="sdk\SDK_CSharp\x64\MOZA_SDK.dll" Link="MOZA_SDK.dll" CopyToOutputDirectory="PreserveNewest" />
-    <!-- Default config next to the exe. -->
-    <None Include="assets\config.json" Link="config.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Step 8 of the spec: native dependencies go to Libraries\ (Main calls
+         SetDllDirectoryW before the first SDK P/Invoke, else DllNotFoundException). -->
+    <None Include="sdk\SDK_CSharp\x64\MOZA_API_C.dll" Link="Libraries\MOZA_API_C.dll" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="sdk\SDK_CSharp\x64\MOZA_SDK.dll" Link="Libraries\MOZA_SDK.dll" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Default config in Assets\ next to the exe. -->
+    <None Include="assets\config.json" Link="Assets\config.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- License file next to the exe. -->
+    <None Include="LICENSE.txt" Link="LICENSE.txt" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

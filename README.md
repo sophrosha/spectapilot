@@ -17,10 +17,7 @@
 - сам DirectInput, драйвер, Pit House и права на устройство исправны —
   отказ рождается внутри SDK 1.0.1.8 (это его особенность, а не поломка системы).
 
-Способы запуска:
-
-1. **`run_elevated.cmd`** рядом с `WheelControl.exe` (двойной клик → UAC);
-2. правый клик по `WheelControl.exe` → «Запуск от имени администратора».
+Способ запуска: правый клик по `WheelControl.exe` → «Запуск от имени администратора».
 
 Также **должен работать MOZA Pit House** — SDK без него не находит устройство
 и при необходимости перезапускает его сам.
@@ -39,7 +36,7 @@
 ## Сборка и публикация
 
 ```powershell
-dotnet build -c Release            # bin\Release\net8.0-windows\
+dotnet build -c Release            # bin\Release\ (Assets\, Libraries\, LICENSE.txt)
 dotnet publish -c Release -o publish   # publish\ (переносимая папка)
 ```
 

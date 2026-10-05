@@ -23,14 +23,15 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Runtime window icon: MainForm/AboutForm read icon.ico from the exe
-         folder. A missing file is fine — the forms keep the default icon.
-         About dialog icons: rasterized at runtime with Svg.NET; a missing or
-         broken SVG falls back to the round red stub (see AboutForm). -->
-    <None Include="assets\icon.ico" Link="icon.ico" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="assets\github.svg" Link="github.svg" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="assets\beamng.svg" Link="beamng.svg" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="assets\bio.svg" Link="bio.svg" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Step 8 of the spec: runtime assets go to Assets\. MainForm/AboutForm
+         read icon.ico from the Assets folder next to the exe. A missing file
+         is fine — the forms keep the default icon. About dialog icons:
+         rasterized at runtime with Svg.NET; a missing or broken SVG falls back
+         to the round red stub (see AboutForm). -->
+    <None Include="assets\icon.ico" Link="Assets\icon.ico" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="assets\github.svg" Link="Assets\github.svg" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="assets\beamng.svg" Link="Assets\beamng.svg" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="assets\bio.svg" Link="Assets\bio.svg" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

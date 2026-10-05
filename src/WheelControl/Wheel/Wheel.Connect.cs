@@ -21,7 +21,7 @@ public sealed partial class Wheel : IDisposable
         }
         catch (DllNotFoundException ex)
         {
-            error = $"нативная dll не найдена ({ex.Message}). Нужны MOZA_API_C.dll и MOZA_SDK.dll (x64) рядом с exe.";
+            error = $"нативная dll не найдена ({ex.Message}). Нужны MOZA_API_C.dll и MOZA_SDK.dll (x64) в подпапке Libraries рядом с exe.";
             return false;
         }
         catch (Exception ex)

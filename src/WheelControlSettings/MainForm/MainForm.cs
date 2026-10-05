@@ -37,9 +37,9 @@ internal sealed partial class MainForm : Form
         ClientSize = new Size(720, 520);
         MinimumSize = new Size(720, 520);
 
-        // Window icon: icon.ico next to the exe when present (copied by the
-        // csproj); otherwise the default embedded exe icon — no crash either way.
-        string iconPath = Path.Combine(AppContext.BaseDirectory, "icon.ico");
+        // Window icon: icon.ico in Assets\ next to the exe when present (copied
+        // by the csproj); otherwise the default embedded exe icon — no crash either way.
+        string iconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "icon.ico");
         if (File.Exists(iconPath))
             Icon = new Icon(iconPath);
 

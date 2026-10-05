@@ -47,6 +47,11 @@ internal static partial class Program
     [DllImport("kernel32.dll")]
     private static extern bool SetConsoleTextAttribute(IntPtr hConsoleOutput, short wAttributes);
 
+    // Step 8 of the spec: the native DLLs are copied to Libraries\ — the loader
+    // must search that folder (called from Main before the first SDK P/Invoke).
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
+    private static extern bool SetDllDirectoryW(string lpPathName);
+
     [StructLayout(LayoutKind.Sequential)]
     private struct NativeCoord
     {

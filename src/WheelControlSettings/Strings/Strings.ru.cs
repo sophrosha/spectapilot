@@ -16,7 +16,7 @@ internal static partial class Strings
             [Key.SavedRunning] = "Сохранено. WheelControl запущен — перезапустите его, чтобы применить изменения.",
             [Key.SaveFailed] = "Ошибка сохранения:",
             [Key.Version] = "Версия",
-            [Key.ConfigMissing] = "config.json не найден рядом с WheelControlSettings.exe — приложение не может продолжить работу.",
+            [Key.ConfigMissing] = "config.json не найден в подпапке Assets рядом с WheelControlSettings.exe — приложение не может продолжить работу.",
             [Key.ConsoleMissing] = "WheelControl.exe не найден рядом с WheelControlSettings.exe — кнопка Demo будет недоступна.",
             [Key.BadConfig] = "config.json не является корректным JSON — исправьте файл вручную.",
             [Key.DemoStarted] = "Demo запущен.",

@@ -14,7 +14,7 @@ namespace WheelControlSettings;
 // is a stock WinForms control with standard fonts.
 internal sealed partial class AboutForm : Form
 {
-    // Rasterize an SVG asset (copied next to the exe by the csproj) to a
+    // Rasterize an SVG asset (copied to Assets\ next to the exe by the csproj) to a
     // 32x32 bitmap with Svg.NET. A missing or unreadable file returns null —
     // the icon then falls back to the round red stub (see HoverIcon), so the
     // dialog never fails because of an asset.
@@ -22,7 +22,7 @@ internal sealed partial class AboutForm : Form
     {
         try
         {
-            string path = Path.Combine(AppContext.BaseDirectory, fileName);
+            string path = Path.Combine(AppContext.BaseDirectory, "Assets", fileName);
             if (!File.Exists(path)) return null;
             Svg.SvgDocument svg = Svg.SvgDocument.Open(path);
             return svg.Draw(IconSize, IconSize);

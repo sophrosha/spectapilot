@@ -16,7 +16,7 @@ internal static partial class Strings
             [Key.SavedRunning] = "Saved. WheelControl is running — restart it to apply the changes.",
             [Key.SaveFailed] = "Save failed:",
             [Key.Version] = "Version",
-            [Key.ConfigMissing] = "config.json was not found next to WheelControlSettings.exe — the app cannot continue.",
+            [Key.ConfigMissing] = "config.json was not found in the Assets folder next to WheelControlSettings.exe — the app cannot continue.",
             [Key.ConsoleMissing] = "WheelControl.exe was not found next to WheelControlSettings.exe — the Demo button will be unavailable.",
             [Key.BadConfig] = "config.json is not valid JSON — fix the file manually.",
             [Key.DemoStarted] = "Demo started.",

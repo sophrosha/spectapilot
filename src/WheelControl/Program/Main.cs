@@ -19,6 +19,10 @@ internal static partial class Program
         Console.OutputEncoding = Encoding.UTF8;
         Console.Title = "WheelControl";
 
+        // Step 8 of the spec: native DLLs live in Libraries\ — add that folder to
+        // the loader search path before the first SDK P/Invoke (InstallSdk).
+        SetDllDirectoryW(Path.Combine(AppContext.BaseDirectory, "Libraries"));
+
         // Above normal priority: the game (loading/hitches) can preempt the 200 Hz
         // loop — skipped ticks accumulate and the force overshoots the target.
         try { Process.GetCurrentProcess().PriorityClass = ProcessPriorityClass.AboveNormal; }
