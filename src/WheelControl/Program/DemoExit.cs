@@ -10,7 +10,7 @@ namespace WheelControl;
 // (Wheel.cs is never edited): re-engage hold at the current angle, walk the
 // target to 0 with a bounded lerp (the smoothing EMA carries the wheel), and
 // only then release — once the wheel has actually stopped at the center
-// (|pos| < 0.5° and |vel| < 5°/с).
+// (|pos| < 0.5° and |vel| < 5°/s).
 internal static partial class Program
 {
     // Stable ends demo from its own 200 Hz tick — there is no event to

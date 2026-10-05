@@ -9,32 +9,28 @@ namespace WheelControl;
 
 public sealed partial class Wheel : IDisposable
 {
-    // ======================== Demo (автономное «вождение») ========================
+    // ======================== Demo (autonomous "driving") ========================
 
-    private const float DemoDefaultSec = 50f;   // длительность по умолчанию
-    private const float DemoPeriodSec = 5f;     // период «змейки»
-    private const float DemoFadeSec = 4f;       // плавный набор/сброс амплитуды
+    private const float DemoDefaultSec = 50f;   // default duration
+    private const float DemoPeriodSec = 5f;     // "snake" period
+    private const float DemoFadeSec = 4f;       // smooth fade-in/out of the amplitude
 
     private volatile bool _demoActive;
     private long _demoStartMs;
     private long _demoDurationMs;
     private float _demoAmp;
 
-    /// <summary>Идёт ли сейчас demo-сценарий.</summary>
+    // Whether a demo scenario is running.
     public bool IsDemoActive => _demoActive;
 
-    /// <summary>
-    /// Запустить имитацию езды: руль плавно «змейкой» крутит от упора до упора
-    /// в режиме hold — сопротивление активно всё время (можно взять в руки).
-    /// Останавливается сам (по таймеру) или командой move/hold/release.
-    /// </summary>
-    /// <param name="seconds">Длительность, с (<=0 → 50).</param>
-    /// <param name="amplitude">Амплитуда ±° (<=0 → полный ход руля).</param>
+    // Start the driving simulation: the wheel smoothly snakes from stop to stop
+    // in hold mode — resistance is active the whole time (you can grab the wheel).
+    // Stops by itself (timer) or by a move/hold/release command.
     public void StartDemo(float seconds, float amplitude)
     {
         if (float.IsNaN(seconds) || seconds <= 0f) seconds = DemoDefaultSec;
         float amp = float.IsNaN(amplitude) || amplitude <= 0f
-            ? _rangeHalf // по умолчанию — полный ход (физические °)
+            ? _rangeHalf // default — full lock (physical °)
             : MathF.Abs(amplitude);
         amp = Math.Clamp(amp, 1f, _rangeHalf);
 
@@ -43,13 +39,13 @@ public sealed partial class Wheel : IDisposable
             _demoActive = true;
             _demoStartMs = _clock.ElapsedMilliseconds;
             _demoDurationMs = (long)(seconds * 1000f);
-            _demoAmp = amp; // физические градусы (консольная шкала)
-            _lockTarget = false; // змейка не у упора — толчки не нужны
+            _demoAmp = amp; // physical degrees (console scale)
+            _lockTarget = false; // the snake is not at the stop — no bumps needed
 
             if (!_holdActive)
             {
-                // Держим через обычный hold: пружина даёт и слежение за «змейкой»,
-                // и сопротивление, если пользователь возьмёт руль в руки.
+                // We hold via a regular hold: the spring both tracks the "snake"
+                // and resists if the user grabs the wheel.
                 _holdPos = 0f;
                 _holdForcePct = Math.Clamp(_cfg.HoldForce, 0f, 100f);
                 _holdRamp = 0f;
@@ -65,8 +61,7 @@ public sealed partial class Wheel : IDisposable
                           "Руль сам крутит змейку; можно взять в руки — будет сопротивление. Остановить: любая команда move/hold/release.");
     }
 
-    /// <summary>Остановить demo: цель — в центр, hold выключается (момент сбрасывается, дальше руль едет в 0).</summary>
-    /// <param name="reason">Причина (для вывода в консоль).</param>
+    // Stop the demo: target to center, hold off (torque zeroed; the wheel then drives to 0).
     public void StopDemo(string reason)
     {
         lock (_gate)
@@ -74,17 +69,17 @@ public sealed partial class Wheel : IDisposable
             if (!_demoActive) return;
             _demoActive = false;
 
-            // Сглаженную — на текущий угол, цель — в центр: возврат сразу «вниз», без ухода вверх.
+            // Smoothed to the current angle, target to center: returns straight "down", never up.
             float pos = _simulated ? _simPos : (_hasPos ? _lastPos : float.NaN);
             if (!float.IsNaN(pos)) _smoothing.SnapTo(pos);
             _smoothing.SetTarget(0f);
             _holdPos = 0f;
             _holdTarget = 0f;
-            _holdActive = false;        // освобождаем — move-петля довезёт до 0
+            _holdActive = false;        // release — the move loop carries it to 0
             _holdRamp = 0f;
-            _lockTarget = false;        // цель — центр, никаких толчков у упора
-            _consoleOverride = false;   // демо кончилось — сокет снова может управлять
-            _targetSet = true;          // напечатаем «Достигнуто: 0°», когда руль доедет
+            _lockTarget = false;        // target — center, no bumps at the stop
+            _consoleOverride = false;   // demo over — the socket may control again
+            _targetSet = true;          // print the "reached: 0°" line once the wheel arrives
             if (!_simulated && _cf is not null)
             {
                 try { _cf.setMagnitude(0); } catch { }
@@ -97,7 +92,7 @@ public sealed partial class Wheel : IDisposable
             : $"Demo остановлен ({reason}).");
     }
 
-    /// <summary>Шаг demo — вызывается из Tick под _gate: двигает цель «змейки».</summary>
+    // Demo step — called from Tick under _gate: moves the "snake" target.
     private void StepDemo()
     {
         if (!_demoActive) return;
@@ -111,12 +106,12 @@ public sealed partial class Wheel : IDisposable
 
         float sec = t / 1000f;
         float totalSec = _demoDurationMs / 1000f;
-        // Огибающая: амплитуда растёт DemoFadeSec и так же гаснет к концу —
-        // старт и финиш плавные, руль всегда заканчивает в центре.
+        // Envelope: the amplitude grows for DemoFadeSec and fades the same way at the end —
+        // start and finish are smooth, the wheel always ends in the center.
         float env = MathF.Min(MathF.Min(sec, totalSec - sec) / DemoFadeSec, 1f);
         if (env < 0f) env = 0f;
 
-        float target = _demoAmp * env * MathF.Sin(2f * MathF.PI * sec / DemoPeriodSec); // физические °
+        float target = _demoAmp * env * MathF.Sin(2f * MathF.PI * sec / DemoPeriodSec); // physical °
         _holdPos = target;
         _smoothing.SetTarget(target);
         _targetSet = false;

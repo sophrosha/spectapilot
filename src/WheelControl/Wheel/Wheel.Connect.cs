@@ -9,12 +9,10 @@ namespace WheelControl;
 
 public sealed partial class Wheel : IDisposable
 {
-    // ======================== SDK: инициализация и поиск ========================
+    // ======================== SDK: init and device discovery ========================
 
-    /// <summary>
-    /// Загрузить SDK. Возвращает false, если нативные dll не найдены/не грузятся.
-    /// После загрузки SDK нужно ~3 секунды на инициализацию (по официальному примеру).
-    /// </summary>
+    // Load the SDK. Returns false if the native dlls are missing/fail to load.
+    // After loading, the SDK needs ~3 seconds to initialize (per the official example).
     public static bool InstallSdk(out string error)
     {
         error = "";
@@ -37,14 +35,12 @@ public sealed partial class Wheel : IDisposable
         }
     }
 
-    /// <summary>
-    /// Проверить, подключён ли руль (один опрос).
-    /// Возвращает "MOZA_WHEELBASE" или null; в detail — результат ERRORCODE для диагностики.
-    ///
-    /// ВАЖНО: штатный getDeviceParent() в SDK 1.0.1.8 ПАДАЕТ с AccessViolationException
-    /// (проверено отдельно, даже на .NET Framework) — поэтому используем getMotorLimitAngle:
-    /// без руля он возвращает NODEVICES, с рульм — NORMAL.
-    /// </summary>
+    // Check whether the wheel is connected (one poll).
+    // Returns "MOZA_WHEELBASE" or null; detail carries the ERRORCODE result for diagnostics.
+    //
+    // IMPORTANT: the stock getDeviceParent() in SDK 1.0.1.8 CRASHES with AccessViolationException
+    // (verified separately, even on .NET Framework) — so we use getMotorLimitAngle:
+    // with no wheel it returns NODEVICES, with a wheel — NORMAL.
     public static string? PollDevice(out string detail)
     {
         detail = "?";
@@ -53,11 +49,11 @@ public sealed partial class Wheel : IDisposable
             ERRORCODE err = ERRORCODE.NORMAL;
             var limits = getMotorLimitAngle(ref err);
             detail = err.ToString();
-            // Санity-проверка: сразу после install SDK может отдать NORMAL с (0,0),
-            // пока идёт сканирование устройств — такое не считаем найденным.
-            // У живого базы limitAngle >= 90 (по документации SDK, диапазон 90..2700).
+            // Sanity check: right after install the SDK may return NORMAL with (0,0),
+            // while devices are still being scanned — such a result is not counted as found.
+            // A live base has limitAngle >= 90 (per SDK docs, the range is 90..2700).
             if (err == ERRORCODE.NORMAL && limits is not null && limits.Item1 >= 90)
-                return "MOZA_WHEELBASE"; // настоящее имя из SDK недоступно (см. TODO в context.md)
+                return "MOZA_WHEELBASE"; // the real SDK name is unavailable (see the TODO in context.md)
             return null;
         }
         catch (Exception ex)
@@ -67,12 +63,10 @@ public sealed partial class Wheel : IDisposable
         }
     }
 
-    // ======================== Подключение ========================
+    // ======================== Connection ========================
 
-    /// <summary>
-    /// Найти устройство (если ещё не известно) и подготовить FFB-эффект.
-    /// В false + текст ошибки, если подключиться не удалось.
-    /// </summary>
+    // Find the device (if not known yet) and prepare the FFB effect.
+    // false + error text if the connection failed.
     public bool Connect(out string error) => Connect(10_000, out error);
 
     public bool Connect(int waitMs, out string error)
@@ -92,7 +86,7 @@ public sealed partial class Wheel : IDisposable
             _sdkInstalled = true;
         }
 
-        // Найти базу, если ещё не найдена
+        // Find the base if it is not found yet
         if (string.IsNullOrEmpty(_deviceId) || _deviceId == "SIMULATED")
         {
             var deadline = Environment.TickCount64 + waitMs;
@@ -109,7 +103,7 @@ public sealed partial class Wheel : IDisposable
 
         try
         {
-            // ---- Лимиты мотора: используем для клампа ввода ----
+            // ---- Motor limits: used to clamp the input ----
             try
             {
                 ERRORCODE lerr = ERRORCODE.NORMAL;
@@ -117,26 +111,26 @@ public sealed partial class Wheel : IDisposable
                 if (lerr == ERRORCODE.NORMAL && limits is not null)
                 {
                     _motorLimits = limits;
-                    // limitAngle = полный угол поворота базы → рабочий диапазон ±limit/2
+                    // limitAngle = full turn angle of the base -> working range ±limit/2
                     int total = Math.Max(limits.Item1, 90);
                     _rangeHalf = Math.Clamp(total / 2f, 45f, 1800f);
                 }
             }
-            catch { /* лимиты не критичны, остаёмся на ±720 */ }
+            catch { /* limits are not critical, stay at ±720 */ }
 
-            // ---- HWND обязателен для FFB-эффектов ----
+            // ---- HWND is required for FFB effects ----
             _hwnd = GetOrCreateWindow();
             if (_hwnd == IntPtr.Zero)
             {
-                // Без окна DirectInput отказывается (FFBERR: "window is null") — скажем об этом понятно.
+                // Without a window DirectInput refuses (FFBERR: "window is null") — report it clearly.
                 error = "не удалось получить окно (HWND) для FFB. Запусти программу в обычном окне терминала (cmd/PowerShell).";
                 return false;
             }
 
-            // ---- Эффект ConstantForce (по official примеру) ----
-            // ВАЖНО (наблюдение на реальном железе): SDK отдаёт Access denied на
-            // device::acquire, если руль в момент старта не в центре (0°).
-            // Поэтому смотрим угол через getHidData и повторяем до центрирования.
+            // ---- ConstantForce effect (per the official example) ----
+            // IMPORTANT (observed on real hardware): the SDK returns Access denied on
+            // device::acquire if the wheel is not centered (0°) at start.
+            // So we read the angle via getHidData and retry until it is centered.
             ETConstantForce? cf = null;
             string lastErr = "неизвестно";
             bool wasCentered = false;
@@ -162,7 +156,7 @@ public sealed partial class Wheel : IDisposable
                         var c = createWheelbaseETConstantForce(_hwnd, ref err);
                         if (c is not null && err == ERRORCODE.NORMAL)
                         {
-                            c.setDuration(0xFFFFFFFF); // INFINITE (в примере стояло 0xffff — 65 с; нам нужно дольше)
+                            c.setDuration(0xFFFFFFFF); // INFINITE (the example had 0xffff — 65 s; we need longer)
                             c.setMagnitude(0);
                             c.start();
                             cf = c;
@@ -186,7 +180,7 @@ public sealed partial class Wheel : IDisposable
             _cf = cf;
             _connected = true;
 
-            // Аппаратный предохранитель по конфигу (диапазон SDK: 50..100)
+            // Hardware fuse from config (SDK range: 50..100)
             SetTorque(_cfg.MaxTorque);
             return true;
         }

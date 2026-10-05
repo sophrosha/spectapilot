@@ -3,113 +3,95 @@ using System.Text.Json.Serialization;
 
 namespace WheelControl;
 
-/// <summary>
-/// Конфигурация приложения. Файл config.json лежит рядом с exe.
-/// Загружается при старте; если файла нет — создаётся с значениями по умолчанию.
-/// </summary>
+// Application configuration. config.json sits next to the exe.
+// Loaded at startup; if the file is missing — created with default values.
 public sealed class Config
 {
-    // ---------- Поля из ТЗ ----------
+    // ---------- Fields from the spec ----------
 
-    /// <summary>true — плавное движение к цели; false — максимально быстро (скорость и момент всё равно ограничены).</summary>
+    // true — smooth motion to the target; false — as fast as possible (speed and torque are limited anyway).
     public bool Smooth { get; set; } = true;
 
-    /// <summary>Время достижения цели, мс (~95% пути за это время при smooth=true).</summary>
+    // Time to reach the target, ms (~95% of the way in that time when smooth=true).
     public int SmoothTimeMs { get; set; } = 500;
 
-    /// <summary>Максимальный момент, % от максимума (аппаратный лимит setMotorPeakTorque, допустимо 50..100).</summary>
+    // Max torque, % of maximum (hardware limit setMotorPeakTorque, allowed 50..100).
     public float MaxTorque { get; set; } = 100.0f;
 
-    /// <summary>Сила удержания (hold), % от максимума (0..100 → шкала DirectInput 0..10000).</summary>
+    // Hold force, % of maximum (0..100 -> DirectInput scale 0..10000).
     public float HoldForce { get; set; } = 50.0f;
 
-    /// <summary>Позиция по умолчанию для удержания, градусы (используется, если текущий угол неизвестен).</summary>
+    // Default hold position, degrees (used when the current angle is unknown).
     public float HoldPosition { get; set; } = 90.0f;
 
-    /// <summary>Порт UDP-сервера (socket mode).</summary>
+    // UDP server port (socket mode).
     public int SocketPort { get; set; } = 7777;
 
-    /// <summary>Адрес UDP-сервера (только localhost — безопасность).</summary>
+    // UDP server address (localhost only — security).
     public string SocketHost { get; set; } = "127.0.0.1";
 
-    /// <summary>Ожидаемый интервал входных данных, мс (~30 Гц от мода). Только справочно/для отладки.</summary>
+    // Expected input interval, ms (~30 Hz from the mod). Informational/debug only.
     public int DataIntervalMs { get; set; } = 33;
 
-    /// <summary>Время сглаживания для команд из СОКЕТА, мс (маленькое = почти без задержки от мода).</summary>
+    // Smoothing time for SOCKET commands, ms (small = almost no latency from the mod).
     public int SocketSmoothTimeMs { get; set; } = 50;
 
-    /// <summary>
-    /// Полный ход руля в ПОЛЬЗОВАТЕЛЬСКИХ градусах: 90 = 1:1 с физикой базы (по умолчанию),
-    /// 180 = шкала вдвое шире (старый вариант, «значения до 180 вместо 90»).
-    /// </summary>
+    // Full wheel lock in USER degrees: 90 = 1:1 with the base physics (default),
+    // 180 = twice as wide a scale (the old variant, "values up to 180 instead of 90").
     public float UserFullLockDeg { get; set; } = 90.0f;
 
-    /// <summary>
-    /// Инвертировать числа, приходящие ИЗ ИГРЫ (сокет): если руль в игре крутится
-    /// в обратную сторону относительно реального — поставь true. Консоль не трогает.
-    /// </summary>
+    // Invert the numbers coming FROM THE GAME (socket): if the in-game wheel turns
+    // the wrong way relative to the real one — set true. Does not affect the console.
     public bool InvertSocket { get; set; } = true;
 
-    /// <summary>
-    /// Режим «держи меня за руки» для сокета (hands): позиции из игры удерживаются
-    /// жёсткой пружиной hold с силой holdForce (100% = оттолкнуть руль сложно),
-    /// а не мягким move. Автоматом включается при первом пакете.
-    /// </summary>
+    // "Hold my hand" mode for the socket (hands): game positions are held
+    // by a hard hold spring with holdForce (100% = hard to push the wheel away),
+    // instead of a soft move. Engages automatically on the first packet.
     public bool SocketHandsMode { get; set; } = true;
 
-    /// <summary>true — UDP-сервер поднимается сам при старте (не нужно писать socket в консоли).</summary>
+    // true — the UDP server comes up by itself at startup (no need to type socket in the console).
     public bool SocketAutoStart { get; set; } = false;
 
-    /// <summary>
-    /// Прогрессивное усиление hold: если рука усилила отклонение от цели,
-    /// сила плавно поднимается к 100% («чувствует усилие — осторожно помогает»).
-    /// </summary>
+    // Progressive hold boost: if the hand increased the deviation from the target,
+    // the force smoothly rises to 100% ("feels the effort — helps carefully").
     public bool ProgressiveHold { get; set; } = true;
 
-    /// <summary>
-    /// У упора (цель = полный ход): мягкие ритмичные толчки 6..12% силы ~1.2 Гц
-    /// вместо жёсткого втыкания в механический стоп.
-    /// </summary>
+    // At the stop (target = full lock): soft rhythmic bumps of 6..12% force at ~1.2 Hz
+    // instead of slamming hard into the mechanical stop.
     public bool LockNudge { get; set; } = true;
 
-    /// <summary>
-    /// Множитель жёсткости пружины hold (Kp): 1.0 = по умолчанию (полная сила при 8°),
-    /// 0.5 = вдвое мягче (ровнее борьба с рукой на микро-отклонениях), 2.0 = жёстче.
-    /// Крутится без пересборки; демо и удержание используют один и тот же множитель.
-    /// </summary>
+    // Hold spring stiffness multiplier (Kp): 1.0 = default (full force at 8°),
+    // 0.5 = twice as soft (a smoother fight with the hand on micro deviations), 2.0 = stiffer.
+    // Tunable without rebuild; demo and hold use the same multiplier.
     public float KpScale { get; set; } = 1.0f;
 
-    /// <summary>
-    /// Множитель демпфера hold (Kd): 1.0 = по умолчанию (полный при 180 °/с).
-    /// Меньше 1 — слабее гашение волны ~15 Гц (дрожание вернётся), больше 1 —
-    /// демпфер жёстче, подлёт медленнее (макс. скорость = 180/KdScale °/с).
-    /// </summary>
+    // Hold damper multiplier (Kd): 1.0 = default (full at 180 °/s).
+    // Below 1 — weaker damping of the ~15 Hz wave (the jitter returns), above 1 —
+    // a stiffer damper and a slower approach (max speed = 180/KdScale °/s).
     public float KdScale { get; set; } = 1.0f;
 
-    // ---------- Дополнительные поля (есть дефолты, в ТЗ не фигурировали) ----------
+    // ---------- Extra fields (have defaults, not in the spec) ----------
 
-    /// <summary>true — не трогать SDK, работать без руля (эквивалент --simulate).</summary>
+    // true — do not touch the SDK, run without a wheel (equivalent to --simulate).
     public bool Simulate { get; set; } = false;
 
-    /// <summary>Страховка от рывков: максимальная скорость изменения угла, °/с.</summary>
+    // Jerk guard: maximum rate of angle change, °/s.
     public float MaxDegPerSec { get; set; } = 720.0f;
 
-    /// <summary>Время разгона силы удержания при включении hold, мс (чтобы не дёргало).</summary>
+    // Hold force ramp-up time on engage, ms (so it does not jerk).
     public int HoldRampMs { get; set; } = 300;
 
-    /// <summary>Лимит силы для движения к цели, 0..10000 (шкала DirectInput; пример SDK использовал 800).</summary>
+    // Force limit for moving to the target, 0..10000 (DirectInput scale; the SDK example used 800).
     public float MoveForceLimit { get; set; } = 1500.0f;
 
-    /// <summary>Ограничение скорости мотора при движении к цели, об/мин (пример SDK: 160).</summary>
+    // Motor speed limit while moving to the target, rpm (SDK example: 160).
     public float MaxMoveSpeedRpm { get; set; } = 90.0f;
 
-    /// <summary>
-    /// Инверсия знака момента. Если при первом тесте руль уходит к упору вместо движения к цели —
-    /// выставьте true (знак мотора зависит от модели базы/прошивки).
-    /// </summary>
+    // Invert the torque sign. If in the first test the wheel drives to the stop instead of to the target —
+    // set true (the motor sign depends on the base model/firmware).
     public bool ForceInvert { get; set; } = false;
 
-    // ---------- Работа с файлом ----------
+    // ---------- File handling ----------
 
     private static readonly JsonSerializerOptions JsonOpts = new()
     {
@@ -119,10 +101,10 @@ public sealed class Config
         PropertyNameCaseInsensitive = true,
     };
 
-    /// <summary>Путь к config.json (папка с exe).</summary>
+    // Path to config.json (the exe folder).
     public static string FilePath => Path.Combine(AppContext.BaseDirectory, "config.json");
 
-    /// <summary>Загрузить конфиг; при отсутствии или ошибке — создать/вернуть значения по умолчанию.</summary>
+    // Load the config; if missing or broken — create/return the defaults.
     public static Config Load()
     {
         try
@@ -147,7 +129,7 @@ public sealed class Config
         }
     }
 
-    /// <summary>Сохранить конфиг в файл.</summary>
+    // Save the config to the file.
     public void Save()
     {
         try
@@ -160,11 +142,11 @@ public sealed class Config
         }
     }
 
-    /// <summary>Привести значения к допустимым диапазонам (защита от кривого файла).</summary>
+    // Clamp the values to valid ranges (guard against a broken file).
     public void Normalize()
     {
         SmoothTimeMs = Math.Clamp(SmoothTimeMs, 50, 10_000);
-        MaxTorque = Math.Clamp(MaxTorque, 50f, 100f);      // диапазон setMotorPeakTorque: 50..100
+        MaxTorque = Math.Clamp(MaxTorque, 50f, 100f);      // setMotorPeakTorque range: 50..100
         HoldForce = Math.Clamp(HoldForce, 0f, 100f);
         DataIntervalMs = Math.Clamp(DataIntervalMs, 5, 1000);
         SocketSmoothTimeMs = Math.Clamp(SocketSmoothTimeMs, 10, 5000);
@@ -176,7 +158,7 @@ public sealed class Config
         MoveForceLimit = Math.Clamp(MoveForceLimit, 100f, 10_000f);
         MaxMoveSpeedRpm = Math.Clamp(MaxMoveSpeedRpm, 5f, 300f);
         HoldPosition = Math.Clamp(HoldPosition, -3600f, 3600f);
-        KpScale = Math.Clamp(KpScale, 0.1f, 3f);   // защита от «сломал петлю» в ручную
+        KpScale = Math.Clamp(KpScale, 0.1f, 3f);   // guard against manually "breaking the loop"
         KdScale = Math.Clamp(KdScale, 0.1f, 3f);
     }
 }

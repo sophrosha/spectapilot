@@ -14,7 +14,7 @@ internal sealed partial class MainForm : Form
     private readonly List<ConfigBinding.Entry> _entries;
 
     // Spec item 4: Process.Start returns immediately — the verdict ("Demo
-    // запущен." vs the failure text) is only known after this delay: the
+    // started." vs the failure text) is only known after this delay: the
     // console may die within milliseconds (AV block, crash) and never opens
     // a window. 5 s is the spec's default.
     private const int DemoWindowWaitMs = 5000;

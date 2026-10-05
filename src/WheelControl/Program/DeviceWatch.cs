@@ -46,7 +46,7 @@ internal static partial class Program
 
             // Probabilistic SEH inside the SDK (E_FAIL on the first effect.start())
             // is fixed by the retry anyway: the per-attempt ERROR with stable's
-            // "Проверь: руль в центре..." text is debug-only noise in the normal
+            // the "check: wheel is centered..." text is debug-only noise in the normal
             // mode — quiet retry there (spec item 1/4).
             if (_debugEnabled)
                 LogError(Strings.T(Strings.Key.ConnectFailed, error));

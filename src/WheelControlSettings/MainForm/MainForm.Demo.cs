@@ -31,7 +31,7 @@ internal sealed partial class MainForm : Form
                 PathResolver.ConsoleExePath!,
                 "--demo=enabled --demo_time=100 --demo_amplitude=100");
 
-            // Clear any previous status: a stale "Demo запущен." must not be
+            // Clear any previous status: a stale "Demo started." must not be
             // shown while the verdict is pending. Restarting resets the full
             // interval — a repeated click gets its own check.
             _demoProcess?.Dispose();

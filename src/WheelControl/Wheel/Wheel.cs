@@ -7,51 +7,49 @@ using static mozaAPI.mozaAPI; // installMozaSDK, getHIDData, createWheelbaseETCo
 
 namespace WheelControl;
 
-/// <summary>
-/// Обёртка над Moza SDK + фоновая петля управления.
-///
-/// Управление рулём (по мотивам официального примера sdk_api_test.cc::moveTo):
-///  - создаётся эффект ConstantForce (нужен HWND — берём консольное окно);
-///  - цикл 200 Гц (5 мс, как DT в примере) читает угол через getHIDData и
-///    выставляет setMagnitude: наружу подаётся сглаженная цель, ошибка позиции
-///    прогоняется через петлю «позиция → скорость → момент»;
-///  - hold — пружина-демпфер на том же эффекте: force = Kp·(target−pos) − Kd·vel.
-///
-/// Режим симуляции: SDK не трогается вообще, позиция интегрируется, команды пишутся как SIM: ...
-/// </summary>
+// Wrapper over the Moza SDK + background control loop.
+//
+// Wheel control (modeled after the official sdk_api_test.cc::moveTo example):
+// - a ConstantForce effect is created (needs an HWND — we use the console window);
+// - the 200 Hz loop (5 ms, like DT in the example) reads the angle via getHIDData and
+// sets setMagnitude: the smoothed target goes out, the position error
+// runs through the "position -> velocity -> torque" loop;
+// - hold — a spring-damper on the same effect: force = Kp·(target−pos) − Kd·vel.
+//
+// Simulation mode: the SDK is never touched, position is integrated, commands print as SIM: ...
 public sealed partial class Wheel : IDisposable
 {
-    // ---- Параметры петли движения (взяты из официального примера SDK) ----
-    private const float SpdKp = 5f;              // скорость: пропорциональ (пример: 5)
-    private const float SpdKi = 40f;             // скорость: интеграл (пример: 40)
+    // ---- Move-loop parameters (taken from the official SDK example) ----
+    private const float SpdKp = 5f;              // velocity: proportional (example: 5)
+    private const float SpdKi = 40f;             // velocity: integral (example: 40)
     private const float DegPerSecToRpm = 60f / 360f;
-    private const float FastMovePosKp = 4.0f;    // позиция: жёсткое слежение при smooth=false
+    private const float FastMovePosKp = 4.0f;    // position: hard tracking when smooth=false
 
-    // ---- Параметры hold (пружина-демпфер) ----
-    private const float HoldSpringFullDeg = 8f;       // ошибка (°), при которой раскрывается полная сила: меньше = жёстче (пользователю: «усиление не сильное»)
-    private const float HoldDampFullDegPerSec = 180f; // скорость, при которой раскрывается полный демпфер: меньше = демпфер сильнее (гасит поддёргивания на змейке и при резком рывке). 150→180 (лог 18:51): остаточные подёргивания = пик волны ~15 Гц (внешний возмутитель в цепи Pit House, наша эффективность на ней ~56% из-за задержки velSdk 5 мс + EMA 5 мс); шаги силы на пиках ∝ kd — минус 17% на них и на гуле, амплитуда физ. волны +~10% (0.18°→0.21° — неощутимо)
+    // ---- Hold parameters (spring-damper) ----
+    private const float HoldSpringFullDeg = 8f;       // error (°) at which the full force engages: smaller = stiffer (user: "the boost is not strong")
+    private const float HoldDampFullDegPerSec = 180f; // velocity at which the full damper engages: smaller = stronger damper (kills the tugging on the snake and on sharp jerks). 150→180 (log 18:51): residual tugging = peak of the ~15 Hz wave (an external disturber in the Pit House chain, our efficiency on it ~56% due to the velSdk 5 ms + EMA 5 ms delay); force steps at the peaks ∝ kd — minus 17% on them and on the hum, physical wave amplitude +~10% (0.18°→0.21° — imperceptible)
 
-    // ---- Гладкость и упор ----
-    // Мёртвая зона с гистерезисом (антидребезг): плоский порог 5°/с щёлкал
-    // вкл/выкл демпфера 3.3 раза/с на МАЛЫХ движениях против 1.1/с на больших
-    // (лог езды 19:54: «большие повороты плавно, малые — шестерня») — сила на
-    // границе туда-сюда дёргала руль как передача. Включаем >7°/с, отпускаем <3°/с:
-    // на покое шум прошивки <5°/с порог не достигает (velFilt в тихом окне = 0),
-    // на волне ±18°/с демпфирование не меняется.
-    private const float VelEngageDegPerSec = 7f;     // включение демпфера, °/с
-    private const float VelReleaseDegPerSec = 3f;    // отпускание демпфера, °/с
-    private const float HandFlickerPhysDeg = 1.5f;   // подавление миганий целых градусов A↔B, ° физ
-    private const float ProgressiveBoostDeg = 30f;    // отклонение (°), за которым сила плавно поднимается к 100% (progressiveHold)
-    private const float NudgeBlendDeg = 3f;           // зона у упора для смешивания пружины с мягкими толчками
-    private const float NudgeHz = 1.2f;               // частота мягких толчков у упора
-    private const float LockApproachDeg = 2f;         // зона подхода к упору в move-петле (плавно, без подпрыгивания)
+    // ---- Smoothness and stops ----
+    // Dead zone with hysteresis (anti-chatter): a flat 5°/s threshold toggled
+    // the damper on/off 3.3 times/s on SMALL moves versus 1.1/s on large ones
+    // (drive log 19:54: "large turns smooth, small ones — gear effect") — the force at
+    // the boundary yanked the wheel back and forth like a gear. Engage >7°/s, release <3°/s:
+    // at rest the firmware noise stays below the threshold (velFilt in a quiet window = 0),
+    // on a ±18°/s wave the damping does not change.
+    private const float VelEngageDegPerSec = 7f;     // damper engage, °/s
+    private const float VelReleaseDegPerSec = 3f;    // damper release, °/s
+    private const float HandFlickerPhysDeg = 1.5f;   // integer-degree A↔B flicker suppression, phys °
+    private const float ProgressiveBoostDeg = 30f;    // deviation (°) past which the force smoothly rises to 100% (progressiveHold)
+    private const float NudgeBlendDeg = 3f;           // zone near the stop for blending the spring with soft bumps
+    private const float NudgeHz = 1.2f;               // frequency of the soft bumps at the stop
+    private const float LockApproachDeg = 2f;         // approach zone to the stop in the move loop (smooth, no bouncing)
 
-    // ---- Защита ----
-    // Порог «что-то совсем не так»: ошибка > 1.5 полного хода. Только предупреждение —
-    // силу НЕ обнуляем (раньше обнуляла при 60°, и дальние ходы вроде +100 не доезжали).
+    // ---- Guards ----
+    // Threshold for "something is very wrong": error > 1.5 full lock. Warning only —
+    // the force is NOT zeroed (before it zeroed at 60°, and long moves like +100 never arrived).
     private const float PosWarnFactor = 1.5f;
 
-    /// <summary>Требуется HWND для создания FFB-эффектов (в консольном приложении — окно консоли).</summary>
+    // HWND required to create FFB effects (in the console app — the console window).
     [DllImport("kernel32.dll")]
     private static extern IntPtr GetConsoleWindow();
 
@@ -71,11 +69,9 @@ public sealed partial class Wheel : IDisposable
 
     private static IntPtr _fallbackHwnd;
 
-    /// <summary>
-    /// Окно для DirectInput: окно консоли, а если его нет (скрытый/фоновый запуск) —
-    /// создаём собственное невидимое окно. Нативный SDK валидирует hwnd и при null
-    /// аккуратно отдаёт FFBERR (проверено), но лучше дать ему рабочее окно.
-    /// </summary>
+    // Window for DirectInput: the console window; if there is none (hidden/background start) —
+    // we create our own invisible window. The native SDK validates hwnd and on null
+    // cleanly returns FFBERR (verified), but better to hand it a working window.
     private static IntPtr GetOrCreateWindow()
     {
         IntPtr h = GetConsoleWindow();
@@ -86,7 +82,7 @@ public sealed partial class Wheel : IDisposable
 
         try
         {
-            // Класс STATIC регистрируется системой — окно скрытое, нужно только для привязки эффектов.
+            // The STATIC class is registered by the system — the window is hidden, needed only to bind effects.
             _fallbackHwnd = CreateWindowExW(0, "STATIC", "WheelControl", 0,
                 0, 0, 0, 0, IntPtr.Zero, IntPtr.Zero, GetModuleHandleW(null), IntPtr.Zero);
         }
@@ -106,99 +102,97 @@ public sealed partial class Wheel : IDisposable
     private string _deviceId = "SIMULATED";
     private IntPtr _hwnd;
     private ETConstantForce? _cf;
-    private static bool _sdkInstalled; // install/remove — процессные, флаг общий для всех экземпляров
+    private static bool _sdkInstalled; // install/remove — process-wide, the flag is shared by all instances
     private bool _connected;
     private int _disposed;
 
-    // Управление (потокобезопасно под _gate)
+    // Control (thread-safe under _gate)
     private volatile bool _holdActive;
-    private float _holdPos;           // сглаженная «пружина»: EMA к _holdTarget — без рывков на пакетах
-    private float _holdTarget;        // заданная цель hold — сюда пишут все команды
+    private float _holdPos;           // smoothed "spring": EMA toward _holdTarget — no packet jerks
+    private float _holdTarget;        // the set hold target — every command writes here
     private float _holdForcePct;
-    private float _holdRamp;          // 0..1 — разгон силы при включении hold
-    private volatile bool _consoleOverride; // консоль взяла управление — сокет не перехватывает цель
-    private long _lastSkipPrint;      // троттлинг сообщения «сокет ждёт»
-    private StreamWriter? _logWriter; // CSV-лог петли (команда log) — диагностика раскачки
+    private float _holdRamp;          // 0..1 — force ramp when hold engages
+    private volatile bool _consoleOverride; // console took control — the socket does not take over the target
+    private long _lastSkipPrint;      // throttle for the "socket waiting" message
+    private StreamWriter? _logWriter; // CSV loop log (log command) — oscillation diagnostics
     private string _logPath = "";
     private long _logEndMs;
-    private float _logVelRaw;         // скорость ДО фильтра — в CSV-лог (диагностика риппля)
-    private float _logVelSdk;         // сырая скорость из SDK — в CSV-лог (проверка единиц)
-    private float _sockMaxRaw;        // максимум |числа| из игры за сессию (до клампа) — шкала
+    private float _logVelRaw;         // velocity BEFORE the filter — to the CSV log (ripple diagnostics)
+    private float _logVelSdk;         // raw velocity from the SDK — to the CSV log (unit check)
+    private float _sockMaxRaw;        // session max |value| from the game (before clamp) — the scale
 
-    // Лесенка целых градусов из игры (мод шлёт round(angle) → шаг 0.5° физ):
-    // по сглаженному наклону входа «опережаем» EMA цели (lead) — ступеньки глушатся,
-    // но руль идёт СИНХРОННО с игрой (просьба: «плавно и синхронно, но не сильно»).
-    private float _tgtVel;                     // наклон цели из сокета, °/с физ (EMA по пакетам)
-    private long _lastPktMs;                   // последний пакет из игры (_clock; 0 = ещё не было)
-    private const float LeadMaxDeg = 2.5f;     // максимум «крена»: пакеты пропали — увод ограничен
-    private const float FastSlopeDegPerSec = 60f; // |v|≥60 °/с → обычная τ (резкие движения)
-    private bool _lockTarget;         // цель стоит на упоре (кламп ±полному ходу)
-    private float _lockDir = 1f;      // направление упора (+1 / −1)
+    // Integer-degree staircase from the game (the mod sends round(angle) -> 0.5° phys step):
+    // the smoothed input slope "leads" the target EMA (lead) — the steps are damped,
+    // but the wheel moves IN SYNC with the game (user request: "smooth and in sync, but not strong").
+    private float _tgtVel;                     // target slope from the socket, phys °/s (EMA over packets)
+    private long _lastPktMs;                   // last packet from the game (_clock; 0 = none yet)
+    private const float LeadMaxDeg = 2.5f;     // max "lead": packets gone — drift is bounded
+    private const float FastSlopeDegPerSec = 60f; // |v|≥60 °/s -> plain τ (sharp moves)
+    private bool _lockTarget;         // target sits at the stop (clamped to ±full lock)
+    private float _lockDir = 1f;      // stop direction (+1 / −1)
     private float _torquePct = 100f;
-    private float _rangeHalf = 90f;   // физические ±° (R3: 180° sweep = ±90; сим = та же база)
+    private float _rangeHalf = 90f;   // physical ±° (R3: 180° sweep = ±90; sim = same base)
     private Tuple<int, int>? _motorLimits;
 
-    // Датчики
-    private float _lastPos;           // последний прочитанный угол (°)
+    // Sensors
+    private float _lastPos;           // last read angle (°)
     private bool _hasPos;
-    private long _lastPosMs;          // когда последний раз приходил угол (диагностика «не читает угол»)
-    private float _velFilt;           // отфильтрованная скорость (EMA) — шум не должен дёргать демпфер
-    private bool _velEngaged;         // гистерезис мёртвой зоны: демпфер «залипает» вкл/выкл (см. VelEngage)
-    private float _pendingVal;        // пакет-кандидат (подавление миганий A↔B, см. HandsTo)
+    private long _lastPosMs;          // when the angle last arrived ("not reading angle" diagnostics)
+    private float _velFilt;           // filtered velocity (EMA) — noise must not jerk the damper
+    private bool _velEngaged;         // dead-zone hysteresis: the damper "sticks" on/off (see VelEngage)
+    private float _pendingVal;        // packet candidate (A↔B flicker suppression, see HandsTo)
     private bool _pendingValid;
-    private float _simPos;            // позиция в симуляции
-    // Окно скорости: позиция HID приходит квантованными шагами, мгновенная
-    // конечная разность даёт пик на КАЖДЫЙ шаг → демпфер пульсирует («шестерня»).
-    // Берём разность по скользящему окну ~40 мс — шаги гаснут в 8×.
-    private const int VelRingLen = 8;              // 8 × ~5 мс ≈ 40 мс
+    private float _simPos;            // position in simulation
+    // Velocity window: HID position arrives in quantized steps; an instant
+    // finite difference spikes on EVERY step -> the damper pulses ("gear effect").
+    // We take the difference over a ~40 ms sliding window — steps are killed 8×.
+    private const int VelRingLen = 8;              // 8 × ~5 ms ≈ 40 ms
     private readonly float[] _velRingPos = new float[VelRingLen];
     private readonly long[] _velRingMs = new long[VelRingLen];
     private int _velRingI;
     private bool _hasVelRing;
-    private long _lastTickMs;                // такт до текущего — ловим дыру после подвисания
-    private float _gapT = 1f;                // 0 после дыры → 1 за GapRampSec (дозахват силы)
-    private float _lastApplied;              // сила, реально отданная на колесо (для дозахвата)
-    private const float GapRampSec = 0.08f;  // плавный набор силы после дыры ~80 мс
-    private const int GapMs = 30;            // такт > 30 мс = дыра (норма тика 5 мс)
-    private float _posInteg;          // интеграл скоростной петли
+    private long _lastTickMs;                // tick before the current one — catch a hole after a stall
+    private float _gapT = 1f;                // 0 after a hole -> 1 over GapRampSec (force catch-up)
+    private float _lastApplied;              // force actually applied to the wheel (for catch-up)
+    private const float GapRampSec = 0.08f;  // smooth force ramp after a hole, ~80 ms
+    private const int GapMs = 30;            // a tick > 30 ms = a hole (normal tick is 5 ms)
+    private float _posInteg;          // velocity-loop integrator
 
-    // Обратная связь пользователю
+    // User feedback
     private bool _announcedReach;
-    private bool _targetSet;          // задавалось ли движение (чтобы не писать «достигнуто» на старте)
-    private long _lastQuietPrint;     // троттлинг вывода для потока из сокета (30 Гц)
+    private bool _targetSet;          // whether a move was set (to avoid printing "reached" at startup)
+    private long _lastQuietPrint;     // output throttle for the socket stream (30 Hz)
     private long _lastWarnTick;
     private bool _effectBroken;
 
-    // Цикл управления
+    // Control loop
     private CancellationTokenSource? _cts;
     private Task? _loop;
 
-    // ---- Две шкалы ----
-    // КОНСОЛЬ = физические градусы (требование пользователя: «hold N = ровно N физ.°
-    // при ЛЮБОЙ настройке Pit House»). ИГРА/СОКЕТ = своя шкала: ±_userFullLock =
-    // полный руль (userFullLockDeg в config.json, 90 = 1:1 с игрой по умолчанию).
-    // Пересчёт сокета: физ = игровые × _rangeHalf / _userFullLock.
+    // ---- Two scales ----
+    // CONSOLE = physical degrees (user requirement: "hold N = exactly N phys.°
+    // under ANY Pit House setting"). GAME/SOCKET = its own scale: ±_userFullLock =
+    // full wheel (userFullLockDeg in config.json, 90 = 1:1 with the game by default).
+    // Socket conversion: phys = game × _rangeHalf / _userFullLock.
     private float _userFullLock = 90f;
     private float U2P(float user) => user * (_rangeHalf / _userFullLock);
     private float P2U(float phys) => phys * (_userFullLock / Math.Max(_rangeHalf, 1f));
 
-    // ---- Публичное состояние ----
+    // ---- Public state ----
 
     public bool IsSimulated => _simulated;
     public bool IsConnected => _connected;
     public bool IsHoldActive => _holdActive;
-    /// <summary>Текущая цель в ФИЗИЧЕСКИХ градусах (консольная шкала).</summary>
+    // Current target in PHYSICAL degrees (console scale).
     public float CurrentTarget => _smoothing.Target;
-    /// <summary>Полный ход до упора, физические ±° (шкала консоли: углы/hold/status).</summary>
+    // Full lock to the stop, physical ±° (console scale: angles/hold/status).
     public float MoveRangeHalf => _rangeHalf;
-    /// <summary>Полный руль в шкале ИГРЫ, ±° (userFullLockDeg) — масштаб чисел из сокета.</summary>
+    // Full wheel on the GAME scale, ±° (userFullLockDeg) — the scale for socket numbers.
     public float SocketRangeHalf => _userFullLock;
-    /// <summary>
-    /// Максимум |числа| из игры за сессию (до клампа) — для настройки userFullLockDeg:
-    /// если больше SocketRangeHalf — руль зажат у упора и ввод обрезается (см. status).
-    /// </summary>
+    // Session max |value| from the game (before clamp) — for tuning userFullLockDeg:
+    // if it exceeds SocketRangeHalf — the wheel is pinned at the stop and input is cut (see status).
     public float SocketMaxSeen { get { lock (_gate) { return _sockMaxRaw; } } }
-    /// <summary>Перевод из игровой шкалы в физические градусы (для «hold» из сокета).</summary>
+    // Convert the game scale to physical degrees (for socket "hold").
     public float SocketToPhysical(float user) => U2P(user);
     public Tuple<int, int>? MotorLimits => _motorLimits;
     public string? LastWarning { get; private set; }
@@ -212,21 +206,21 @@ public sealed partial class Wheel : IDisposable
         _smoothing = new Smoothing(cfg, 0f);
     }
 
-    // ======================== Безопасное выключение ========================
+    // ======================== Safe shutdown ========================
 
-    /// <summary>Идемпотентно: обнулить момент, остановить эффекты, выгрузить SDK.</summary>
+    // Idempotent: zero the torque, stop the effects, unload the SDK.
     public void Dispose()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
 
-        // 1) Остановить цикл управления
+        // 1) Stop the control loop
         try { _cts?.Cancel(); } catch { }
         try { _loop?.Wait(700); } catch { }
         try { _cts?.Dispose(); } catch { }
 
         lock (_gate)
         {
-            StopLogInternal(); // дописать/закрыть CSV-лог, если шёл
+            StopLogInternal(); // flush/close the CSV log if it was running
 
             if (_simulated)
             {
@@ -235,7 +229,7 @@ public sealed partial class Wheel : IDisposable
                 return;
             }
 
-            // 2) Обнуление момента — главное правило безопасности
+            // 2) Zeroing the torque — the main safety rule
             try { _cf?.setMagnitude(0); } catch { }
             try { _cf?.stop(); } catch { }
             try { stopForceFeedback(); } catch { }

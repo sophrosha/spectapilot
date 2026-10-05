@@ -9,16 +9,14 @@ namespace WheelControl;
 
 public sealed partial class Wheel : IDisposable
 {
-    // ======================== Управление (API из ТЗ) ========================
+    // ======================== Control (API from the spec) ========================
 
-    /// <summary>Целевая позиция: руль пойдёт туда плавно (smooth) или резко, но с ограничениями.</summary>
-    /// <param name="degrees">Угол в ПОЛЬЗОВАТЕЛЬСКИХ градусах (0 = центр, ±userFullLockDeg = полный ход).</param>
-    /// <param name="quiet">true — приглушить вывод (поток из сокета приходит 30 раз в секунду).</param>
+    // Target position: the wheel goes there smoothly (smooth) or sharply, but within limits.
     public void SetPosition(float degrees, bool quiet = false)
     {
-        // Консоль (quiet=false) — физические градусы; сокет (quiet=true) — игровая шкала.
-        float clamped;               // цель в физических градусах
-        float shown;                  // то, что напечатаем — в единицах своего ввода
+        // Console (quiet=false) — physical degrees; socket (quiet=true) — game scale.
+        float clamped;               // target in physical degrees
+        float shown;                  // what we print — in the units of its own input
         bool atLock;
         if (quiet)
         {
@@ -35,21 +33,21 @@ public sealed partial class Wheel : IDisposable
         }
         lock (_gate)
         {
-            // Команда из консоли — сокет больше не перехватывает цель (до release / socket).
+            // Command from the console — the socket no longer takes over the target (until release / socket).
             if (!quiet) _consoleOverride = true;
 
-            // Диагностика шкалы (см. HandsTo): максимум |числа| из игры за сессию.
+            // Scale diagnostics (see HandsTo): session max |value| from the game.
             else if (MathF.Abs(degrees) > _sockMaxRaw) _sockMaxRaw = MathF.Abs(degrees);
 
-            // Идея пользователя: повтор одного и того же значения (стрим «90 90 90»)
-            // отсекаем — цель уже стоит, руль и так её ведёт/держит; ждём другое число.
+            // User's idea: a repeat of the same value (a "90 90 90" stream)
+            // is cut — the target is already set and the wheel tracks/holds it; we wait for a different number.
             if (quiet && !_holdActive &&
                 MathF.Abs(clamped - _smoothing.Target) < 1e-3f)
                 return;
 
-            // Возврат без «прыжка в старую сторону»: если сглаженная точка осталась
-            // не на той стороне руля, что и новая цель (или цель = руль) — перепрыгиваем
-            // на текущий угол. Иначе после «0» руль сначала уезжал бы вверх к старой цели.
+            // Return without "jumping to the old side": if the smoothed point
+            // is on a different side of the wheel than the new target (or target = wheel) — jump
+            // to the current angle. Otherwise after "0" the wheel would first go up to the old target.
             float pos = _simulated ? _simPos : (_hasPos ? _lastPos : float.NaN);
             if (!float.IsNaN(pos) &&
                 (_smoothing.Current - pos) * (clamped - pos) <= 0f &&
@@ -57,12 +55,12 @@ public sealed partial class Wheel : IDisposable
                 _smoothing.SnapTo(pos);
 
             _smoothing.SetTarget(clamped);
-            // Цель на упоре? У упора будут мягкие толчки-индикатор (lockNudge).
+            // Target at the stop? Soft indicator bumps await at the stop (lockNudge).
             _lockTarget = atLock;
             _lockDir = clamped >= 0f ? 1f : -1f;
-            // Консоль: привычное сглаживание. Сокет: почти мгновенно (задержка от мода ~0).
+            // Console: the usual smoothing. Socket: nearly instant (mod latency ~0).
             _smoothing.SetTauMs(quiet ? _cfg.SocketSmoothTimeMs : (float?)_cfg.SmoothTimeMs);
-            if (_holdActive) _holdTarget = clamped; // hold «переезжает» к новой цели: +10/-10 работают и в hold
+            if (_holdActive) _holdTarget = clamped; // hold "moves" to the new target: +10/-10 work in hold too
             _announcedReach = false;
             _targetSet = true;
             _posInteg = 0;
@@ -70,9 +68,9 @@ public sealed partial class Wheel : IDisposable
             if (quiet)
             {
                 if (!_simulated)
-                    return; // железо из сокета: молчим — Console под _gate дорог (~5-20 мс
-                            // рендера) и сбивает тик 200 Гц, юзер чувствовал рывком
-                // Сим печатает не чаще раза в секунду — по этим строкам идут смоуки.
+                    return; // hardware from the socket: stay silent — Console under _gate is expensive (~5-20 ms
+                            // of rendering) and skews the 200 Hz tick; the user felt it as a jerk
+                // The sim prints at most once a second — the smokes key off these lines.
                 long now = Environment.TickCount64;
                 if (now - _lastQuietPrint < 1000) return;
                 _lastQuietPrint = now;
@@ -87,9 +85,7 @@ public sealed partial class Wheel : IDisposable
         }
     }
 
-    /// <summary>
-    /// Ограничение момента, % (0 = полное обнуление; 50..100 = аппаратный лимит setMotorPeakTorque).
-    /// </summary>
+    // Torque limit, % (0 = full zeroing; 50..100 = the hardware limit setMotorPeakTorque).
     public void SetTorque(float torque)
     {
         lock (_gate)
@@ -106,16 +102,16 @@ public sealed partial class Wheel : IDisposable
 
             if (pct <= 0f)
             {
-                try { _cf.setMagnitude(0); } catch { /* эффект мог быть уже остановлен */ }
+                try { _cf.setMagnitude(0); } catch { /* the effect may already have been stopped */ }
                 return;
             }
 
             try { setMotorPeakTorque((int)Math.Clamp(pct, 50f, 100f)); }
-            catch { /* не критично */ }
+            catch { /* not critical */ }
         }
     }
 
-    /// <summary>Текущий угол руля в ФИЗИЧЕСКИХ градусах (шкала консоли); NaN, если данных ещё не было.</summary>
+    // Current wheel angle in PHYSICAL degrees (console scale); NaN if there is no data yet.
     public float GetPosition()
     {
         lock (_gate)
@@ -125,17 +121,15 @@ public sealed partial class Wheel : IDisposable
         }
     }
 
-    /// <summary>Позиция для относительных команд (физ. °): реальный угол, а если данных нет — текущая цель.</summary>
+    // Position for relative commands (phys °): the real angle, or the current target if there is no data.
     public float GetReferencePosition()
     {
         float p = GetPosition();
         return float.IsNaN(p) ? _smoothing.Target : p;
     }
 
-    /// <summary>
-    /// Угол руля напрямую из HID (для диагностики старта: SDK стартует только из центра).
-    /// NaN, если данные недоступны — тогда считаем «угол неизвестен» и пробуем стартовать.
-    /// </summary>
+    // Wheel angle straight from HID (for start diagnostics: the SDK only starts from the center).
+    // NaN if the data is unavailable — then we treat the angle as unknown and try to start.
     private float ReadHidAngle()
     {
         try

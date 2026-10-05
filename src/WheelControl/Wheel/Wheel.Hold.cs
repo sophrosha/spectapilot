@@ -9,30 +9,28 @@ namespace WheelControl;
 
 public sealed partial class Wheel : IDisposable
 {
-    /// <summary>Включить удержание: руль мягко, но уверенно сопротивляется попыткам повернуть.</summary>
-    /// <param name="position">Позиция для удержания, пользовательские градусы (±полный ход = упор).</param>
-    /// <param name="force">Сила, % от максимума (0..100).</param>
+    // Engage hold: the wheel resists attempts to turn it softly but firmly.
     public void EnableHold(float position, float force)
     {
-        // Позиция — в ФИЗИЧЕСКИХ градусах (консоль; «hold» из сокета конвертируется в Program).
+        // Position is in PHYSICAL degrees (console; socket "hold" is converted in Program).
         float clamped = Math.Clamp(position, -_rangeHalf, _rangeHalf);
         float f = Math.Clamp(force, 0f, 100f);
         lock (_gate)
         {
-            _consoleOverride = true;           // консоль взяла управление: сокет не перехватывает до release
+            _consoleOverride = true;           // console took control: the socket does not take over until release
             _holdForcePct = f;
-            _holdRamp = 0f;                    // силу набираем плавно (holdRampMs) — без рывка
+            _holdRamp = 0f;                    // force ramps up smoothly (holdRampMs) — no jerk
             _holdActive = true;
             _lockTarget = MathF.Abs(clamped) >= _rangeHalf - 0.5f;
             _lockDir = clamped >= 0f ? 1f : -1f;
 
-            // Сглаженную точку — на текущий угол, цель — на удержание:
-            // после release руль продолжит именно с этой позиции, без ухода в старую сторону.
+            // The smoothed point goes to the current angle, the target to the hold position:
+            // after release the wheel continues from exactly this position, without drifting to the old side.
             float pos = _simulated ? _simPos : (_hasPos ? _lastPos : float.NaN);
             if (!float.IsNaN(pos)) _smoothing.SnapTo(pos);
             _smoothing.SetTarget(clamped);
 
-            // Пружина стартует с ТЕКУЩЕГО угла и плавно (EMA) идёт к цели — без рывка при включении.
+            // The spring starts at the CURRENT angle and eases (EMA) to the target — no jerk on engage.
             _holdTarget = clamped;
             _holdPos = float.IsNaN(pos) ? clamped : pos;
 
@@ -41,7 +39,7 @@ public sealed partial class Wheel : IDisposable
         }
     }
 
-    /// <summary>Выключить удержание (сила плавно сбрасывается в 0).</summary>
+    // Disengage hold (force ramps smoothly to 0).
     public void DisableHold()
     {
         lock (_gate)
@@ -53,40 +51,38 @@ public sealed partial class Wheel : IDisposable
             _holdActive = false;
             _holdRamp = 0f;
             _lockTarget = false;
-            _consoleOverride = false; // release = вернуть управление сокету (игре)
+            _consoleOverride = false; // release = hand control back to the socket (the game)
 
             if (_simulated)
                 Console.WriteLine("SIM: DisableHold()");
         }
     }
 
-    /// <summary>Вернуть управление целью сокету (команда socket в консоли).</summary>
+    // Return target control to the socket (the socket command in the console).
     public void AllowSocketControl()
     {
         lock (_gate) { _consoleOverride = false; }
     }
-    /// <summary>
-    /// Плавное ведение цели hold (общее для железа и сима). Целые градусы из игры дают
-    /// лесенку 0.5° физ: на медленном повороте τ удваивается (ступеньки глушатся сильнее),
-    /// а наклон входа добавляет «крен» lead = v×τ — отставание EMA на наклоне компенсируется
-    /// и руль идёт синхронно с игрой. Резкие движения (|v| ≥ 60 °/с) — обычная τ без крена
-    /// выше LeadMaxDeg, чтобы не «уезжать» вперёд при обрыве пакетов.
-    /// </summary>
+    // Smooth hold-target tracking (shared by hardware and sim). Integer degrees from the game give
+    // a 0.5° physical staircase: on slow turns τ doubles (the steps are damped harder),
+    // and the input slope adds lead = v×τ — the EMA lag on a slope is compensated
+    // and the wheel moves in sync with the game. Sharp moves (|v| ≥ 60 °/s) use plain τ without lead
+    // above LeadMaxDeg so we do not run ahead on packet loss.
     private void StepHoldTarget(float dt)
     {
         if (!_holdActive || _demoActive || _cfg.SocketSmoothTimeMs <= 0f) return;
 
         if (_lastPktMs != 0 && _clock.ElapsedMilliseconds - _lastPktMs > 150)
-            _tgtVel = 0f; // пакеты перестали приходить — крен не держим
+            _tgtVel = 0f; // packets stopped arriving — no lead is kept
 
         float vAbs = MathF.Abs(_tgtVel);
         float tau = _cfg.SocketSmoothTimeMs *
-                    (2f - MathF.Min(vAbs / FastSlopeDegPerSec, 1f)); // 2×cfg (медленно) → 1×cfg (быстро)
+                    (2f - MathF.Min(vAbs / FastSlopeDegPerSec, 1f)); // 2×cfg (slow) -> 1×cfg (fast)
         float lead = Math.Clamp(_tgtVel * (tau / 1000f), -LeadMaxDeg, LeadMaxDeg);
         float k = Math.Clamp(dt * 1000f / tau, 0f, 1f);
-        // Кламп к физ. упору: цель+крен не должны вылезать за rangeHalf — иначе у края
-        // пружина ветрается в стенку (лог езды: holdPos 91.7 при ходе ±90), а на развороте
-        // крен слетает за пару тактов — юзер это чувствует как дёрганье на конце угла.
+        // Clamp to the physical stop: target+lead must not exceed rangeHalf — otherwise at the edge
+        // the spring winds into the wall (drive log: holdPos 91.7 at ±90 travel), and on the way back
+        // the lead drops off within a couple of ticks — the user feels it as a jerk at the end of the range.
         float goal = Math.Clamp(_holdTarget + lead, -_rangeHalf, _rangeHalf);
         _holdPos += (goal - _holdPos) * k;
     }

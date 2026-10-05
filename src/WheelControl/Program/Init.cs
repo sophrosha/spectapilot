@@ -67,7 +67,7 @@ internal static partial class Program
         public NativeCoord MaximumWindowSize;
     }
 
-    /// <summary>Silence native SDK printf + stable Console lines during SDK init/connect. No-op in debug mode.</summary>
+    // Silence native SDK printf + stable Console lines during SDK init/connect. No-op in debug mode.
     private static void MuteNativeOutput()
     {
         lock (MuteLock)
@@ -87,7 +87,7 @@ internal static partial class Program
             SetStdHandle(StdOutputHandleId, _nulHandle);
             SetStdHandle(StdErrorHandleId, _nulHandle);
 
-            // Console.WriteLine (stable's "Угол руля при старте" etc.) goes through
+            // Console.WriteLine (stable's startup-angle line etc.) goes through
             // Console.Out — drop it too; our Log/PrintOrange bypass it on purpose.
             _savedOutWriter = Console.Out;
             Console.SetOut(TextWriter.Null);
@@ -95,7 +95,7 @@ internal static partial class Program
         }
     }
 
-    /// <summary>Restore real stdout after a successful connect. Idempotent; safe to call from any thread.</summary>
+    // Restore real stdout after a successful connect. Idempotent; safe to call from any thread.
     private static void RestoreNativeOutput()
     {
         lock (MuteLock)
@@ -112,11 +112,9 @@ internal static partial class Program
         }
     }
 
-    /// <summary>
-    /// Close other running instances (two processes must not fight over one FFB
-    /// effect). CloseMainWindow is NOT used: console processes may share a window
-    /// — we would close someone else's window, so Kill right away.
-    /// </summary>
+    // Close other running instances (two processes must not fight over one FFB
+    // effect). CloseMainWindow is NOT used: console processes may share a window
+    // — we would close someone else's window, so Kill right away.
     private static void CloseOtherInstances()
     {
         try
@@ -138,7 +136,7 @@ internal static partial class Program
         catch { /* diagnostics must not block startup */ }
     }
 
-    /// <summary>Start the UDP server (config socketHost:socketPort) and hand control to it.</summary>
+    // Start the UDP server (config socketHost:socketPort) and hand control to it.
     private static async Task StartSocketAsync()
     {
         if (_socket is { IsRunning: true }) return;
@@ -157,7 +155,7 @@ internal static partial class Program
         LogInfo(Strings.T(Strings.Key.SocketListening, _cfg.SocketHost, _cfg.SocketPort));
     }
 
-    /// <summary>Idempotent: zero the torque and close everything. Called on Ctrl+C / window close / exit.</summary>
+    // Idempotent: zero the torque and close everything. Called on Ctrl+C / window close / exit.
     private static void Shutdown()
     {
         if (Interlocked.Exchange(ref _shutdownDone, 1) != 0) return;

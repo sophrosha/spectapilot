@@ -244,7 +244,7 @@ internal static partial class Program
         //  - PHYSICAL degrees (SetPosition can't be used: its quiet argument is
         //    the USER scale — U2P would shift the target, userFullLockDeg=180
         //    vs ±90 physical — and it sets _targetSet, which makes stable
-        //    announce "Достигнуто: …°" right at startup);
+        //    announce the "reached: …°" line right at startup);
         //  - force 0 and DisableHold right away: no force, and DisableHold
         //    clears the console override EnableHold sets;
         //  - _targetSet is not touched, so no reach announcement appears.
@@ -290,7 +290,7 @@ internal static partial class Program
 }
 
 // Pass-through Console writer that drops exactly stable's hands engage line —
-// everything else (including the "-> сокет ждёт: ..." override warning printed
+// everything else (including the "-> socket waiting: ..." override warning printed
 // by the same HandsTo call) reaches the console as before.
 internal sealed class HandsLineFilter(TextWriter inner) : TextWriter
 {

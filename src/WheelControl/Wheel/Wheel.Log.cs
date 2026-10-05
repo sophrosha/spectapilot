@@ -9,9 +9,9 @@ namespace WheelControl;
 
 public sealed partial class Wheel : IDisposable
 {
-    // ======================== Диагностика раскачки (команда log) ========================
+    // ======================== Oscillation diagnostics (log command) ========================
 
-    /// <summary>Начать CSV-лог петли (200 Гц): позиция, скорости, цель, сила → osc_log.csv.</summary>
+    // Start the CSV loop log (200 Hz): position, velocities, target, force -> osc_log.csv.
     public void StartLog(float seconds)
     {
         lock (_gate)
@@ -21,10 +21,10 @@ public sealed partial class Wheel : IDisposable
             _logPath = Path.Combine(AppContext.BaseDirectory, "osc_log.csv");
             try
             {
-                // Без AutoFlush, но с буфером 64 КБ (~700 строк ≈ сброс раз в 3.5 с).
-                // Буфер по умолчанию (1 КБ ≈ 11 строк) сбрасывался ~18 раз/с — каждый
-                // сброс на диск перехватывается антивирусом и мог подвесить петлю на
-                // десятки мс (это и были дыры в логе до 218 мс).
+                // No AutoFlush, but with a 64 KB buffer (~700 lines ≈ a flush every 3.5 s).
+                // The default buffer (1 KB ≈ 11 lines) flushed ~18 times/s — every
+                // disk flush is intercepted by the antivirus and could stall the loop for
+                // tens of ms (those were the holes in the log of up to 218 ms).
                 _logWriter = new StreamWriter(_logPath, false, new UTF8Encoding(false), 64 * 1024);
                 _logWriter.WriteLine("ms,pos,velRaw,velSdk,velFilt,holdPos,smTarget,force,hold,lock,override,ramp");
                 _logEndMs = _clock.ElapsedMilliseconds + (long)(sec * 1000f);
@@ -38,7 +38,7 @@ public sealed partial class Wheel : IDisposable
         }
     }
 
-    /// <summary>Остановить запись лога досрочно.</summary>
+    // Stop log recording early.
     public void StopLog()
     {
         lock (_gate)
@@ -49,7 +49,7 @@ public sealed partial class Wheel : IDisposable
         }
     }
 
-    /// <summary>Закрыть лог (внутри _gate; без печати — используется и из Dispose).</summary>
+    // Close the log (inside _gate; no printing — also used from Dispose).
     private void StopLogInternal()
     {
         if (_logWriter is null) return;
@@ -57,7 +57,7 @@ public sealed partial class Wheel : IDisposable
         _logWriter = null;
     }
 
-    /// <summary>Строка лога; вызывается из Tick под _gate.</summary>
+    // One log line; called from Tick under _gate.
     private void WriteLog(float pos, float velFilt, float force)
     {
         var w = _logWriter;

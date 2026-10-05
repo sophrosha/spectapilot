@@ -9,20 +9,20 @@ namespace WheelControl;
 
 public sealed partial class Wheel : IDisposable
 {
-    /// <summary>Позиционная петля (порт official примера sdk_api_test.cc::moveTo).</summary>
+    // Position loop (ported from the official sdk_api_test.cc::moveTo example).
     private float ComputeMoveForce(float pos, float vel, float dt)
     {
         float smoothed = _smoothing.Step(dt);
         float posError = smoothed - pos;
 
-        // Только предупреждение — силу НЕ обнуляем: цель должна достигаться всегда.
-        // (Раньше при >60° сила сбрасывалась навсегда: +100 и «0» не доезжали.)
+        // Warning only — the force is NOT zeroed: the target must always be reachable.
+        // (Before, above 60° the force was reset for good: +100 and "0" never arrived.)
         if (MathF.Abs(posError) > _rangeHalf * PosWarnFactor)
             Warn($"очень большая ошибка позиции {posError:0.#}° — если руль идёт не туда, выставь forceInvert в config.json.");
 
-        // Позиция -> требуемая скорость (об/мин).
-        // pos_kp подобран так, чтобы при тau=SmoothTimeMs получился 1.0 — как в примере SDK.
-        // Из сокета tau маленькая (socketSmoothTimeMs) → реакция почти мгновенная.
+        // Position -> required speed (rpm).
+        // pos_kp is tuned so that tau=SmoothTimeMs yields 1.0 — as in the SDK example.
+        // From the socket tau is small (socketSmoothTimeMs) -> the reaction is nearly instant.
         float posKp = _cfg.Smooth
             ? 0.5f / Math.Max(_smoothing.EffectiveTauMs / 1000f, 0.01f)
             : FastMovePosKp;
@@ -31,34 +31,34 @@ public sealed partial class Wheel : IDisposable
         float spdRef = posKp * posError;
         spdRef = Math.Clamp(spdRef, -speedLimit, speedLimit);
 
-        // Скорость -> момент.
+        // Speed -> torque.
         float currentRpm = vel * DegPerSecToRpm;
         float spdErr = spdRef - currentRpm;
 
         _posInteg += spdErr * dt * SpdKi;
-        // Интегратор может выйти на ВЕСЬ предел момента. (Раньше делили на SpdKi:
-        // получалось 1500/40 = 37.5 ≈ 0.4% — руль не преодолевал трение и +10 не доезжал.)
+        // The integrator can reach the FULL torque limit. (Before, we divided by SpdKi:
+        // it was 1500/40 = 37.5 ≈ 0.4% — the wheel could not overcome friction and +10 never arrived.)
         float integLimit = Math.Max(_cfg.MoveForceLimit, 100f);
-        _posInteg = Math.Clamp(_posInteg, -integLimit, integLimit); // без виндапа
+        _posInteg = Math.Clamp(_posInteg, -integLimit, integLimit); // no windup
 
         float torqueRef = _posInteg + spdErr * SpdKp;
 
-        // Знак: в официальном примере target_ref = -torque_ref.
+        // Sign: in the official example target_ref = -torque_ref.
         float magnitude = -torqueRef;
         if (_cfg.ForceInvert) magnitude = -magnitude;
 
         float cap = MathF.Min(_cfg.MoveForceLimit, 10_000f);
         float result = Math.Clamp(magnitude, -cap, cap);
 
-        // ---- Плавный подход к упору (анти-«подпрыгивание как мячик") ----
-        // Цель на клампе у механического стопа: интеграл копился весь ход и вдавливал
-        // руль в упор → отскок → повторный удар (качается). У упора: стравливаем
-        // интеграл и притормаживаем подачу — руль мягко прижимается и стоит.
-        float toStop = smoothed >= 0f ? _rangeHalf - pos : _rangeHalf + pos; // до упора в сторону цели
+        // ---- Smooth approach to the stop (anti "bouncy ball") ----
+        // Target clamped at the mechanical stop: the integral wound up over the whole travel and pushed
+        // the wheel into the stop -> bounce -> second hit (it rocks). At the stop: we bleed
+        // the integral and slow the feed — the wheel presses softly and stays.
+        float toStop = smoothed >= 0f ? _rangeHalf - pos : _rangeHalf + pos; // distance to the stop in the target direction
         bool approachingStop = toStop < LockApproachDeg && (posError >= 0f) == (smoothed >= 0f);
         if (approachingStop)
         {
-            _posInteg *= 0.85f; // стравить виндап у упора (каждый тик)
+            _posInteg *= 0.85f; // bleed windup at the stop (every tick)
             if (toStop > 0f)
                 result *= 0.3f + 0.7f * Math.Clamp(toStop / LockApproachDeg, 0f, 1f);
         }
@@ -66,22 +66,22 @@ public sealed partial class Wheel : IDisposable
         return result;
     }
 
-    /// <summary>Удержание: пружина-демпфер. Мягко, но уверенно сопротивляется, без рывков.</summary>
+    // Hold: spring-damper. Resists softly but firmly, without jerks.
     private float ComputeHoldForce(float pos, float vel, float dt)
     {
-        // Разгон силы при включении (и после каждого входа в hold) — чтобы не дёргало.
+        // Force ramp on engage (and after each entry into hold) — to avoid a jerk.
         if (_cfg.HoldRampMs <= 0)
             _holdRamp = 1f;
         else
             _holdRamp = Math.Min(1f, _holdRamp + dt * 1000f / _cfg.HoldRampMs);
 
-        float baseCap = Math.Clamp(_holdForcePct, 0f, 100f) / 100f * 10_000f; // % → шкала DirectInput
+        float baseCap = Math.Clamp(_holdForcePct, 0f, 100f) / 100f * 10_000f; // % -> DirectInput scale
         if (baseCap <= 0f) return 0f;
 
-        float err = _holdPos - pos;                     // >0 — руль левее цели
+        float err = _holdPos - pos;                     // >0 — the wheel is left of the target
 
-        // Прогрессивное усиление («чувствует мою руку»): если пользователь усилил
-        // отклонение от цели, сила ОСТОРОЖНО поднимается к 100% — smoothstep, без ступенек.
+        // Progressive boost ("feels my hand"): if the user increased
+        // the deviation from the target, the force CAREFULLY rises to 100% — smoothstep, no steps.
         float cap = baseCap;
         if (_cfg.ProgressiveHold && cap < 10_000f)
         {
@@ -90,50 +90,50 @@ public sealed partial class Wheel : IDisposable
             cap += (10_000f - cap) * x;
         }
 
-        // KpScale/KdScale из config.json (по умолчанию 1.0 = прежнее поведение):
-        // kpScale 0.5 = пружина вдвое мягче (меньше борьбы с рукой и щелчков стик-липа),
-        // kdScale — демпфер (осторожно: <1 возвращает волну ~15 Гц, см. README).
-        // Губернатор от KpScale не зависит (кламп по cap), равновесная скорость
-        // подлёта = cap/kd = 180/KdScale °/с.
-        float kp = cap / HoldSpringFullDeg * _cfg.KpScale;             // пружина: полная сила при 8° ошибки
-        float kd = cap / HoldDampFullDegPerSec * _cfg.KdScale;         // демпфер: полный при 180 °/с
+        // KpScale/KdScale from config.json (default 1.0 = previous behavior):
+        // kpScale 0.5 = the spring is twice as soft (less fight with the hand, fewer stick-slip clicks),
+        // kdScale — the damper (careful: <1 brings back the ~15 Hz wave, see README).
+        // The governor does not depend on KpScale (clamped by cap); the equilibrium
+        // approach speed = cap/kd = 180/KdScale °/s.
+        float kp = cap / HoldSpringFullDeg * _cfg.KpScale;             // spring: full force at 8° of error
+        float kd = cap / HoldDampFullDegPerSec * _cfg.KdScale;         // damper: full at 180 °/s
 
-        // Сила в «+ угол»: тянет к цели и гасит движение (ни туда, ни сюда — не дёргается).
-        // Губернатор подлёта: пружина ограничивается cap ДО сложения с демпфером.
-        // Иначе при большом ветре (заряжена у упора / скачок цели) сумма kp·err − kd·v
-        // даёт равновесную скорость kp·err/kd = 22.5·err — на скачке цели −95→0 руль
-        // улетал на 697 °/с с шагом силы 6300 (лог езды 19:54, событие 94.94) — «стол
-        // дрожит, руль хочет быстро вернуться». С клампом: v_равн = cap/kd = 180 °/с при
-        // ЛЮБОЙ ошибке; на типичной работе |err|<8° пружина ниже cap — формула не меняется,
-        // сила удержания и сопротивление рывку (err>8, скорость от руки) те же.
+        // Force in the "+ angle" direction: pulls to the target and damps motion (neither way — no jerk).
+        // Approach governor: the spring is capped BEFORE being summed with the damper.
+        // Otherwise, on a big wind-up (charged at the stop / target jump) the sum kp·err − kd·v
+        // gives an equilibrium speed kp·err/kd = 22.5·err — on a −95->0 target jump the wheel
+        // flew at 697 °/s with a force step of 6300 (drive log 19:54, event 94.94) — "the
+        // table shakes, the wheel wants back fast". With the clamp: v_eq = cap/kd = 180 °/s for
+        // ANY error; in typical use |err|<8° the spring is below cap — the formula unchanged,
+        // hold force and jerk resistance (err>8, hand speed) are the same.
         float spring = Math.Clamp(kp * err, -cap, cap);
         float forcePlus = spring - kd * vel;
 
-        // У упора (цель на клампе, руль у механического стопа): мягкие ритмичные толчки
-        // 6..12% силы ~1.2 Гц — «осторожные, не сильные» (в игре может быть 3 витка,
-        // а ход у нас один — упор подсказывает предел без жёсткого втыкания).
+        // At the stop (target clamped, wheel at the mechanical stop): soft rhythmic bumps
+        // of 6..12% force at ~1.2 Hz — "careful, not strong" (in game there may be 3 turns,
+        // but we have one travel — the stop hints the limit without a hard slam).
         if (_cfg.LockNudge && _lockTarget)
         {
-            float dist = _rangeHalf - MathF.Abs(pos);   // сколько осталось до упора
+            float dist = _rangeHalf - MathF.Abs(pos);   // how much is left to the stop
             if (dist <= NudgeBlendDeg)
             {
-                float prox = 1f - MathF.Max(dist, 0f) / NudgeBlendDeg;      // 0..1 к упору
+                float prox = 1f - MathF.Max(dist, 0f) / NudgeBlendDeg;      // 0..1 toward the stop
                 float phase = Environment.TickCount64 * 0.001f * 2f * MathF.PI * NudgeHz;
                 float pulse = 0.06f + 0.06f * (0.5f + 0.5f * MathF.Sin(phase));
                 float nudgePlus = cap * pulse * _lockDir;
-                forcePlus += (nudgePlus - forcePlus) * prox;   // плавный переход пружина↔толчок
+                forcePlus += (nudgePlus - forcePlus) * prox;   // smooth spring<->bump blend
             }
         }
 
         float magnitude = _cfg.ForceInvert ? forcePlus : -forcePlus;
         magnitude *= _holdRamp;
-        // ВАЖНО: slew-лимитера (ограничение скорости изменения силы) здесь НЕТ — он в петле
-        // обратной связи давал фазовый сдвиг и раскачку руля до упора («качался 120..160»).
-        // Плавность дают: EMA цели (_holdPos), мёртвая зона скорости и holdRampMs.
+        // IMPORTANT: there is NO slew limiter (force rate limit) here — in the feedback loop
+        // it caused a phase shift and wheel oscillation up to the stop ("rocked 120..160").
+        // Smoothness comes from: the target EMA (_holdPos), the velocity dead zone and holdRampMs.
         return Math.Clamp(magnitude, -cap, cap);
     }
 
-    /// <summary>Отдать момент на колесо (с восстановлением эффекта после сбоя).</summary>
+    // Apply torque to the wheel (with effect recovery after a fault).
     private void ApplyMagnitude(float magnitude)
     {
         if (_cf is null) return;
@@ -150,7 +150,7 @@ public sealed partial class Wheel : IDisposable
         }
         catch (Exception ex)
         {
-            // Эффект мог «умереть» (например, по таймауту) — пробуем перезапустить один раз.
+            // The effect may have "died" (e.g. on timeout) — try restarting it once.
             if (!_effectBroken)
             {
                 _effectBroken = true;
@@ -173,7 +173,7 @@ public sealed partial class Wheel : IDisposable
         }
     }
 
-    /// <summary>Предупреждение (не чаще раза в 5 секунд, чтобы не спамить).</summary>
+    // Warning (at most once per 5 seconds, no spam).
     private void Warn(string message)
     {
         LastWarning = message;

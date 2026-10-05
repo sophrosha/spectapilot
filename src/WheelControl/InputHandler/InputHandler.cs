@@ -2,46 +2,46 @@ using System.Globalization;
 
 namespace WheelControl;
 
-/// <summary>Тип команды пользователя.</summary>
+// A user command kind.
 public enum CommandKind
 {
-    /// <summary>Число без знака — абсолютный угол (0° = центр). Например: 180</summary>
+    // Unsigned number — absolute angle (0° = center). Example: 180
     MoveAbsolute,
-    /// <summary>Число со знаком — относительный поворот. Например: +30, -30</summary>
+    // Signed number — relative turn. Example: +30, -30
     MoveRelative,
-    /// <summary>hold [угол] — включить удержание.</summary>
+    // hold [angle] — engage hold.
     Hold,
-    /// <summary>release — выключить удержание.</summary>
+    // release — disengage hold.
     Release,
-    /// <summary>socket — перейти в socket mode (запустить UDP-сервер).</summary>
+    // socket — switch to socket mode (start the UDP server).
     Socket,
-    /// <summary>keyboard — вернуться в keyboard mode.</summary>
+    // keyboard — return to keyboard mode.
     Keyboard,
-    /// <summary>status — показать состояние.</summary>
+    // status — show the state.
     Status,
-    /// <summary>sleep N — пауза N мс (удобно для скриптов/тестов).</summary>
+    // sleep N — pause N ms (handy for scripts/tests).
     Sleep,
-    /// <summary>exit / quit — выход.</summary>
+    // exit / quit — quit.
     Exit,
-    /// <summary>help / ? — список команд.</summary>
+    // help / ? — list the commands.
     Help,
-    /// <summary>demo [сек] [амплитуда°] — имитация езды в режиме hold.</summary>
+    // demo [sec] [amplitude°] — driving simulation in hold mode.
     Demo,
-    /// <summary>log [сек] — CSV-лог петли 200 Гц (диагностика раскачки).</summary>
+    // log [sec] — CSV log of the 200 Hz loop (oscillation diagnostics).
     Log,
-    /// <summary>Не распознано.</summary>
+    // Not recognized.
     Unknown,
 }
 
-/// <summary>Распарсенная команда.</summary>
+// A parsed command.
 public readonly struct Command
 {
     public CommandKind Kind { get; init; }
-    /// <summary>Числовое значение (угол для Move*, мс для Sleep).</summary>
+    // Numeric value (angle for Move*, ms for Sleep).
     public float Value { get; init; }
-    /// <summary>Второе число (амплитуда для demo), NaN если не задано.</summary>
+    // Second number (amplitude for demo), NaN if not given.
     public float Value2 { get; init; }
-    /// <summary>Исходная строка (для вывода ошибок).</summary>
+    // The raw line (for error output).
     public string Raw { get; init; }
 
     public Command(CommandKind kind, float value = 0f, string raw = "", float value2 = float.NaN)
@@ -53,26 +53,24 @@ public readonly struct Command
     }
 }
 
-/// <summary>
-/// Разбор команд. Один и тот же парсер для консоли и сокета, но знаки разные:
-/// в консоли «-10» — сдвиг (относительный), а мод шлёт ПОЛОЖЕНИЕ «-1»/«-2» —
-/// из сокета минус = абсолютный угол. «+10» (явный плюс) — относительный везде.
-/// invert=true (invertSocket в config.json) — знак разобранного ЧИСЛА из игры
-/// инвертируется: руль в игре крутится не в ту сторону → направление совпадает.
-/// </summary>
+// Command parsing. One parser for both console and socket, but the signs differ:
+// in the console "-10" is a shift (relative), while the mod sends a POSITION "-1"/"-2" —
+// from the socket minus = absolute angle. "+10" (explicit plus) is relative everywhere.
+// invert=true (invertSocket in config.json) — the sign of the parsed NUMBER from the game
+// is flipped: the in-game wheel turns the wrong way -> the direction matches.
 public static class InputHandler
 {
     public static Command Parse(string? line, bool fromSocket = false, bool invert = false)
     {
         string raw = line ?? "";
-        // Убираем возможный BOM (файлы/пайпы от PowerShell) и пробелы.
+        // Strip a possible BOM (files/pipes from PowerShell) and whitespace.
         string s = raw.Trim().Trim((char)0xFEFF).Trim();
 
         if (s.Length == 0)
             return new Command(CommandKind.Unknown, 0f, raw);
 
-        // --- Числа: абсолютный угол (180, -45, 90.5, 0, допускается запятая: 90,5) ---
-        // Относительный: «+30» везде; «-30» — только в консоли (в сокете это позиция).
+        // --- Numbers: absolute angle (180, -45, 90.5, 0; a comma is allowed: 90,5) ---
+        // Relative: "+30" everywhere; "-30" only in the console (in the socket it is a position).
         if (s[0] == '+' || (s[0] == '-' && s.Length > 1 && !IsWord(s) && !fromSocket))
         {
             if (TryParseNumber(s, out float rel))
@@ -83,7 +81,7 @@ public static class InputHandler
             return new Command(CommandKind.MoveAbsolute, invert ? -abs : abs, raw);
         }
 
-        // --- Словесные команды (регистронезависимо) ---
+        // --- Verbal commands (case-insensitive) ---
         string[] parts = s.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         string word = parts[0].ToLowerInvariant();
 
@@ -92,7 +90,7 @@ public static class InputHandler
             case "hold":
                 if (parts.Length >= 2 && TryParseNumber(parts[1], out float hp))
                     return new Command(CommandKind.Hold, hp, raw);
-                return new Command(CommandKind.Hold, float.NaN, raw); // NaN = «текущая позиция»
+                return new Command(CommandKind.Hold, float.NaN, raw); // NaN = "current position"
 
             case "release":
             case "stop":
@@ -121,7 +119,7 @@ public static class InputHandler
 
             case "demo":
             {
-                // demo [секунды] [амплитуда°] — по умолчанию 50 с и полный ход руля
+                // demo [seconds] [amplitude°] — defaults: 50 s and full wheel lock
                 float sec = 50f;
                 float amp = float.NaN;
                 if (parts.Length >= 2 && TryParseNumber(parts[1], out float d1)) sec = d1;
@@ -135,7 +133,7 @@ public static class InputHandler
 
             case "log":
             {
-                // log [секунды] — по умолчанию 10 с
+                // log [seconds] — default 10 s
                 float sec = 10f;
                 if (parts.Length >= 2 && TryParseNumber(parts[1], out float lg)) sec = lg;
                 return new Command(CommandKind.Log, sec, raw);
@@ -146,20 +144,20 @@ public static class InputHandler
         }
     }
 
-    /// <summary>Разбор числа с поддержкой '.' и ',' в качестве разделителя.</summary>
+    // Parse a number supporting '.' and ',' as the decimal separator.
     public static bool TryParseNumber(string s, out float value)
     {
         s = s.Trim();
         if (s.Length == 0) { value = 0; return false; }
 
-        // В русской локали пользователь может писать 90,5 — нормализуем к точке.
+        // In the Russian locale the user may write 90,5 — normalize it to a dot.
         string norm = s.Replace(',', '.');
         return float.TryParse(norm, NumberStyles.Float, CultureInfo.InvariantCulture, out value);
     }
 
     private static bool IsWord(string s)
     {
-        // "-30" — число, "-abc" — не число (не трогаем).
+        // "-30" is a number, "-abc" is not (leave it alone).
         foreach (char c in s)
             if (!char.IsDigit(c) && c != '.' && c != ',' && c != '-' && c != '+' && c != 'e' && c != 'E')
                 return true;
