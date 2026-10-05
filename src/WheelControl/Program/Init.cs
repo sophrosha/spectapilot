@@ -23,9 +23,11 @@ internal static partial class Program
     private const uint OpenExisting = 3;
     private const short AttributeDarkYellow = 6; // ConsoleColor.DarkYellow = RED|GREEN
 
-    private static readonly object MuteLock = new();
+    private static readonly object _muteLock = new();
     private static bool _muted;
-    private static IntPtr _savedStdOut, _savedStdErr, _nulHandle;
+    private static IntPtr _savedStdOut;
+    private static IntPtr _savedStdErr;
+    private static IntPtr _nulHandle;
     private static TextWriter? _savedOutWriter;
 
     [DllImport("kernel32.dll")]
@@ -70,7 +72,7 @@ internal static partial class Program
     // Silence native SDK printf + stable Console lines during SDK init/connect. No-op in debug mode.
     private static void MuteNativeOutput()
     {
-        lock (MuteLock)
+        lock (_muteLock)
         {
             if (_debugEnabled || _muted) return; // debug keeps everything visible
 
@@ -98,7 +100,7 @@ internal static partial class Program
     // Restore real stdout after a successful connect. Idempotent; safe to call from any thread.
     private static void RestoreNativeOutput()
     {
-        lock (MuteLock)
+        lock (_muteLock)
         {
             if (!_muted) return;
             SetStdHandle(StdOutputHandleId, _savedStdOut);
@@ -160,6 +162,6 @@ internal static partial class Program
     {
         if (Interlocked.Exchange(ref _shutdownDone, 1) != 0) return;
         try { _wheel?.Dispose(); } catch { /* zeroing torque comes first */ }
-        try { _socket?.DisposeAsync().AsTask().Wait(1000); } catch { }
+        try { _socket?.DisposeAsync().AsTask().Wait(1000); } catch { /* shutdown must never throw */ }
     }
 }

@@ -9,8 +9,8 @@ namespace WheelControl;
 // read raw from JSON: Config.cs is stable code and has no Debug field.
 internal static partial class Program
 {
-    private static readonly Stopwatch LogClock = Stopwatch.StartNew();
-    private static readonly object LogLock = new();
+    private static readonly Stopwatch _logClock = Stopwatch.StartNew();
+    private static readonly object _logLock = new();
     private static bool _debugEnabled;
 
     // Real console sinks captured before any mute (see Init.cs): our own lines
@@ -49,9 +49,9 @@ internal static partial class Program
 
     private static void WriteLog(string level, string text)
     {
-        double sec = LogClock.Elapsed.TotalSeconds;
+        double sec = _logClock.Elapsed.TotalSeconds;
         string stamp = sec.ToString("0.000", CultureInfo.InvariantCulture);
-        lock (LogLock)
+        lock (_logLock)
         {
             TextWriter w = _realOut ?? Console.Out;
             w.WriteLine($"[ {stamp} ] {level} : {text}");
@@ -65,7 +65,7 @@ internal static partial class Program
     // handle we swapped in, and the hint would lose its color.
     private static void PrintOrange(string text)
     {
-        lock (LogLock)
+        lock (_logLock)
         {
             TextWriter w = _realOut ?? Console.Out;
             NativeScreenBufferInfo prev = default;

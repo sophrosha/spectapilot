@@ -12,7 +12,7 @@ internal static partial class Program
     private static Config _cfg = new();
     private static Wheel? _wheel;
     private static SocketServer? _socket;
-    private static readonly SemaphoreSlim DispatchGate = new(1, 1); // serialize socket commands
+    private static readonly SemaphoreSlim _dispatchGate = new(1, 1); // serialize socket commands
 
     private static async Task Main(string[] args)
     {
@@ -79,10 +79,7 @@ internal static partial class Program
             // Spec item 3: stable's StartDemo prints its own long hint — silence
             // Console for the duration of the call (our Log*/PrintOrange lines go
             // to the captured writer and are unaffected). Not editing Wheel.cs.
-            TextWriter savedOut = Console.Out;
-            Console.SetOut(TextWriter.Null);
-            try { wheel.StartDemo(cli.DemoTime, cli.DemoAmplitude); }
-            finally { Console.SetOut(savedOut); }
+            Muted(() => wheel.StartDemo(cli.DemoTime, cli.DemoAmplitude));
 
             // Own short INFO instead. Show what actually runs: mirror stable's
             // StartDemo defaults (DemoDefaultSec is private) and its clamp to
@@ -129,41 +126,48 @@ internal static partial class Program
         }
 
         // Debug mode: echo every accepted value ("[ 0.000 ] DEBUG : rotate 90").
-        if (cmd.Kind is CommandKind.MoveAbsolute or CommandKind.MoveRelative)
+        // The string is only built when debug output is on (30 datagrams/s path).
+        if ((cmd.Kind is CommandKind.MoveAbsolute or CommandKind.MoveRelative) && _debugEnabled)
             LogDebug($"rotate {line.Trim()}");
 
-        await DispatchGate.WaitAsync();
+        await _dispatchGate.WaitAsync();
         try
         {
             var wheel = _wheel;
             if (wheel is null) return;
 
+            // Stable's demo must not fight a socket command: stop it first,
+            // with the same reason strings the console always printed.
+            void StopDemoIfActive(string reason)
+            {
+                if (wheel.IsDemoActive) wheel.StopDemo(reason);
+            }
+
+            // Shared move tail: hands mode tracks hard, the normal mode sets
+            // the target quietly — identical in both move cases.
+            void ApplyMove(float degrees)
+            {
+                if (_cfg.SocketHandsMode)
+                    HandsToQuiet(wheel, degrees); // "hold my hands": hard tracking
+                else
+                    wheel.SetPosition(degrees, quiet: true);
+            }
+
             switch (cmd.Kind)
             {
                 case CommandKind.MoveAbsolute:
-                {
-                    if (wheel.IsDemoActive) wheel.StopDemo("отменена командой");
-                    if (_cfg.SocketHandsMode)
-                        HandsToQuiet(wheel, cmd.Value); // "hold my hands": hard tracking
-                    else
-                        wheel.SetPosition(cmd.Value, quiet: true);
+                    StopDemoIfActive("отменена командой");
+                    ApplyMove(cmd.Value);
                     break;
-                }
 
                 case CommandKind.MoveRelative:
-                {
-                    if (wheel.IsDemoActive) wheel.StopDemo("отменена командой");
-                    float basePos = wheel.GetReferencePosition();
-                    if (_cfg.SocketHandsMode)
-                        HandsToQuiet(wheel, basePos + cmd.Value);
-                    else
-                        wheel.SetPosition(basePos + cmd.Value, quiet: true);
+                    StopDemoIfActive("отменена командой");
+                    ApplyMove(wheel.GetReferencePosition() + cmd.Value);
                     break;
-                }
 
                 case CommandKind.Hold:
                 {
-                    if (wheel.IsDemoActive) wheel.StopDemo("отменена командой");
+                    StopDemoIfActive("отменена командой");
                     float pos = cmd.Value; // NaN = no argument
                     if (float.IsNaN(pos))
                     {
@@ -179,18 +183,14 @@ internal static partial class Program
                 }
 
                 case CommandKind.Release:
-                {
-                    if (wheel.IsDemoActive) wheel.StopDemo("отменена командой");
+                    StopDemoIfActive("отменена командой");
                     wheel.DisableHold();
                     break;
-                }
 
                 case CommandKind.Demo:
-                {
-                    if (wheel.IsDemoActive) wheel.StopDemo("перезапуск");
+                    StopDemoIfActive("перезапуск");
                     wheel.StartDemo(cmd.Value, cmd.Value2);
                     break;
-                }
 
                 case CommandKind.Status:
                 {
@@ -217,7 +217,7 @@ internal static partial class Program
         }
         finally
         {
-            DispatchGate.Release();
+            _dispatchGate.Release();
         }
     }
 
@@ -250,14 +250,11 @@ internal static partial class Program
         //  - _targetSet is not touched, so no reach announcement appears.
         // Mute the calls' own output (SIM prints): the user does not need these
         // technical lines. Demo/socket logic is untouched.
-        TextWriter saved = Console.Out;
-        Console.SetOut(TextWriter.Null);
-        try
+        Muted(() =>
         {
             wheel.EnableHold(pos, 0f);
             wheel.DisableHold();
-        }
-        finally { Console.SetOut(saved); }
+        });
     }
 
     // Hands-mode dispatch (spec: capture message format). Stable's hardware
@@ -276,10 +273,7 @@ internal static partial class Program
             return;
         }
 
-        TextWriter saved = Console.Out;
-        Console.SetOut(new HandsLineFilter(saved));
-        try { wheel.HandsTo(degrees, _cfg.HoldForce); }
-        finally { Console.SetOut(saved); }
+        WithOut(new HandsLineFilter(Console.Out), () => wheel.HandsTo(degrees, _cfg.HoldForce));
 
         // Print only when the engage really happened: otherwise the packet was
         // skipped under a console override (its stable warning went through

@@ -23,7 +23,7 @@ internal static partial class Program
     private const float SettlePosDeg = 0.5f;
     private const float SettleVelDegPerSec = 5f;
 
-    // Started once from Main. Shares DispatchGate with the socket dispatcher:
+    // Started once from Main. Shares _dispatchGate with the socket dispatcher:
     // while the return runs, game packets queue up (last target still wins
     // afterwards) instead of fighting the lerp.
     private static async Task DemoExitWatchAsync()
@@ -37,7 +37,7 @@ internal static partial class Program
             bool now = wheel.IsDemoActive;
             if (was && !now)
             {
-                await DispatchGate.WaitAsync();
+                await _dispatchGate.WaitAsync();
                 try
                 {
                     // Re-check under the gate: a command may have claimed the
@@ -49,14 +49,14 @@ internal static partial class Program
                 }
                 finally
                 {
-                    DispatchGate.Release();
+                    _dispatchGate.Release();
                 }
             }
             was = now;
         }
     }
 
-    // The return itself (spec Variant A). Caller holds DispatchGate.
+    // The return itself (spec Variant A). Caller holds _dispatchGate.
     private static async Task SmoothReturnToZeroAsync(Wheel wheel)
     {
         // SIM: stable's log lines stay byte-identical for the smoke scripts.
