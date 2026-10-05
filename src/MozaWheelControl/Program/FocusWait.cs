@@ -19,7 +19,7 @@ internal static partial class Program
     {
         if (GetForegroundWindow() == GetConsoleWindow()) return; // already focused
 
-        PrintOrange("> Please click on this window to focus it.");
+        PrintOrange(Strings.T(Strings.Key.FocusHint));
         while (GetForegroundWindow() != GetConsoleWindow())
             await Task.Delay(250);
     }

@@ -31,7 +31,7 @@ internal static partial class Program
 
         // Focus gate has already passed — safe to touch the SDK now.
         if (!MozaWheel.InstallSdk(out string sdkError))
-            LogError($"SDK init failed: {sdkError}");
+            LogError(Strings.T(Strings.Key.SdkInitFailed, sdkError));
 
         while (true)
         {
@@ -49,14 +49,13 @@ internal static partial class Program
             // "Проверь: руль в центре..." text is debug-only noise in the normal
             // mode — quiet retry there (spec item 1/4).
             if (_debugEnabled)
-                LogError($"Connect failed: {error}");
+                LogError(Strings.T(Strings.Key.ConnectFailed, error));
 
             // ...but never wait silently forever: one neutral line after N
             // consecutive failures, printed once in either mode (spec item 2).
             if (Interlocked.Increment(ref _connectFailsSeen) >= ConnectFailReportAttempts &&
                 Interlocked.Exchange(ref _connectFailReported, 1) == 0)
-                LogError("Device found but connect fails repeatedly. " +
-                         "Check MOZA Pit House (wheel centered, admin rights).");
+                LogError(Strings.T(Strings.Key.ConnectSummary));
 
             wheel.Dispose();
             await Task.Delay(1000); // back to polling — the device may reconnect
@@ -67,7 +66,7 @@ internal static partial class Program
     {
         await Task.Delay(20_000);
         if (!_connected && Interlocked.Exchange(ref _deviceHintShown, 1) == 0)
-            PrintOrange("> If the device is on, click this window and wait.");
+            PrintOrange(Strings.T(Strings.Key.WaitHint));
     }
 
     private static async Task<string> WatchAsync()

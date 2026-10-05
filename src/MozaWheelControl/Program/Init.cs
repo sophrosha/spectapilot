@@ -129,7 +129,7 @@ internal static partial class Program
                     if (p.Id == me.Id) continue; // this is us
                     p.Kill();
                     p.WaitForExit(2000);
-                    LogInfo($"Closed previous instance [{p.ProcessName} #{p.Id}] — running only this one.");
+                    LogInfo(Strings.T(Strings.Key.ClosedPrevious, p.ProcessName, p.Id));
                 }
                 catch { /* already gone / no rights — do not block startup */ }
                 finally { p.Dispose(); }
@@ -147,14 +147,14 @@ internal static partial class Program
         string? error = socket.Start();
         if (error is not null)
         {
-            LogError($"Socket start failed: {error}");
+            LogError(Strings.T(Strings.Key.SocketStartFailed, error));
             await socket.DisposeAsync();
             return;
         }
 
         _socket = socket;
         _wheel?.AllowSocketControl(); // fresh socket session — release console override
-        LogInfo($"Socket listening on {_cfg.SocketHost}:{_cfg.SocketPort}.");
+        LogInfo(Strings.T(Strings.Key.SocketListening, _cfg.SocketHost, _cfg.SocketPort));
     }
 
     /// <summary>Idempotent: zero the torque and close everything. Called on Ctrl+C / window close / exit.</summary>
