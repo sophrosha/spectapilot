@@ -12,6 +12,10 @@
     <Prefer32Bit>false</Prefer32Bit>
     <RollForward>Major</RollForward>
     <InvariantGlobalization>false</InvariantGlobalization>
+    <!-- Exe icon; applied only when assets/icon.ico exists. The exe icon is
+         embedded here — the runtime file copy (icon.ico next to the exe, read
+         by MainForm/AboutForm) is made by the Settings csproj. -->
+    <ApplicationIcon Condition="Exists('assets\icon.ico')">assets\icon.ico</ApplicationIcon>
     <!-- Sources are listed explicitly: both projects share the repository root,
          so default globbing would pull the other project's files in. This also
          keeps sdk\SDK_CSharp\example\ShifterTest.cs (top-level statements) out

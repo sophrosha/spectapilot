@@ -22,4 +22,41 @@
     <Compile Include="src\MozaWheelControlSettings\**\*.cs" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Runtime window icon: MainForm/AboutForm read icon.ico from the exe
+         folder. A missing file is fine — the forms keep the default icon.
+         About dialog icons: rasterized at runtime with Svg.NET; a missing or
+         broken SVG falls back to the round red stub (see AboutForm). -->
+    <None Include="assets\icon.ico" Link="icon.ico" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="assets\github.svg" Link="github.svg" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="assets\beamng.svg" Link="beamng.svg" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="assets\bio.svg" Link="bio.svg" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Lightweight SVG rasterizer for the About icons — no SkiaSharp/
+         ImageSharp, no native dependencies. -->
+    <PackageReference Include="Svg" Version="3.4.7" />
+  </ItemGroup>
+
+  <!-- Step 5, item 6: git stamp written into
+       AssemblyInformationalVersionAttribute as "commit: <short hash>"
+       (or "commit: dev" when git/the repo is unavailable); AboutForm shows
+       it as the commit line. Without .git the target is skipped and the
+       runtime fallback produces "commit: dev" as well. -->
+  <Target Name="GitCommitStamp" BeforeTargets="GenerateAssemblyInfo" Condition="Exists('.git')">
+    <Exec Command="git rev-parse --short HEAD 2&gt;nul"
+          ConsoleToMSBuild="true"
+          IgnoreExitCode="true"
+          StandardOutputImportance="low">
+      <Output TaskParameter="ConsoleOutput" PropertyName="GitCommitHash" />
+      <Output TaskParameter="ExitCode" PropertyName="GitCommitExit" />
+    </Exec>
+    <PropertyGroup>
+      <_CommitStamp Condition="'$(GitCommitExit)' == '0' And '$(GitCommitHash)' != ''">commit: $(GitCommitHash)</_CommitStamp>
+      <_CommitStamp Condition="'$(_CommitStamp)' == ''">commit: dev</_CommitStamp>
+      <InformationalVersion>$(_CommitStamp)</InformationalVersion>
+    </PropertyGroup>
+  </Target>
+
 </Project>

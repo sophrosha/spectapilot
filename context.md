@@ -486,6 +486,29 @@ SocketServer.cs   — async UDP-слушатель 127.0.0.1:7777 (одна да
     через maxTorque (его сетап), kpScale 0.5 — пружина вдвое мягче.
     Смоук: сборка 0/0; v5 10/10, v6 7/7 (vMin=2.25, stFinal=14, settle=0 —
     метрики не сдвинулись), v3 exit 0, v4 чистый.
+41. **TODO (hands mode smoothing) — proposal only, НЕ реализовано.**
+    Наблюдение пользователя (5 часов езды): в режиме рук (`socketHandsMode`)
+    руль бывало резко поворачивал — руки рвёт. Нужна отдельная опция защиты,
+    не `holdForce=100`:
+
+    ```
+    TODO (hands mode smoothing):
+
+    Regular hold: wheel moves to target with full kp/kd.
+
+    Hands mode needs: on sharp target jumps (>N degrees in <M ms), limit torque
+    ramp or dampen kp for a short window, so the wheel doesn't yank the user's hands.
+
+    Should be separate config flag (e.g. handsMaxJerkDegPerSec or handsSoftZoneDeg).
+
+    Needs user testing on hardware to tune N/M.
+
+    Not implemented yet — proposal only.
+    ```
+
+    Обычный hold — без изменений (руль быстро едет по цели); в hands mode на
+    больших скачках целевой позиции момент ограничивается/сглаживается.
+    Порог N, окно M и коэффициент пользователь определит после тестов на железе.
 
 ## 6. Результаты сборки и тестов
 
