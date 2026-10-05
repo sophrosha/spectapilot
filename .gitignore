@@ -2,5 +2,7 @@ bin/
 obj/
 publish/
 .vs/
+*.user
+*.suo
 osc_log.csv
 *.log
