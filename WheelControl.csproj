@@ -1,0 +1,47 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>WheelControl</RootNamespace>
+    <AssemblyName>WheelControl</AssemblyName>
+    <!-- The wheel DLLs (MOZA_API_C.dll / MOZA_SDK.dll) are 64-bit only. -->
+    <PlatformTarget>x64</PlatformTarget>
+    <Prefer32Bit>false</Prefer32Bit>
+    <RollForward>Major</RollForward>
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <!-- Exe icon; applied only when assets/icon.ico exists. The exe icon is
+         embedded here — the runtime file copy (icon.ico next to the exe, read
+         by MainForm/AboutForm) is made by the Settings csproj. -->
+    <ApplicationIcon Condition="Exists('assets\icon.ico')">assets\icon.ico</ApplicationIcon>
+    <!-- Sources are listed explicitly: both projects share the repository root,
+         so default globbing would pull the other project's files in. This also
+         keeps sdk\SDK_CSharp\example\ShifterTest.cs (top-level statements) out
+         of the build, which the old Compile Remove="sdk\**" used to do. -->
+    <EnableDefaultItems>false</EnableDefaultItems>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="src\WheelControl\**\*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- C# wrapper of the Moza SDK (targets .NET Framework 4.8; loads on .NET 8
+         because it only references mscorlib). -->
+    <Reference Include="MOZA_API_CSharp">
+      <HintPath>sdk\SDK_CSharp\x64\MOZA_API_CSharp.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Native dependencies must sit next to the exe (else DllNotFoundException). -->
+    <None Include="sdk\SDK_CSharp\x64\MOZA_API_C.dll" Link="MOZA_API_C.dll" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="sdk\SDK_CSharp\x64\MOZA_SDK.dll" Link="MOZA_SDK.dll" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Default config next to the exe. -->
+    <None Include="assets\config.json" Link="config.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

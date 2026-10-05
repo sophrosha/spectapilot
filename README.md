@@ -19,8 +19,8 @@
 
 Способы запуска:
 
-1. **`run_elevated.cmd`** рядом с `MozaWheelControl.exe` (двойной клик → UAC);
-2. правый клик по `MozaWheelControl.exe` → «Запуск от имени администратора».
+1. **`run_elevated.cmd`** рядом с `WheelControl.exe` (двойной клик → UAC);
+2. правый клик по `WheelControl.exe` → «Запуск от имени администратора».
 
 Также **должен работать MOZA Pit House** — SDK без него не находит устройство
 и при необходимости перезапускает его сам.
@@ -49,8 +49,8 @@ dotnet publish -c Release -o publish   # publish\ (переносимая пап
 ## Запуск
 
 ```powershell
-.\publish\MozaWheelControl.exe                    # реальный руль (от администратора!)
-.\publish\MozaWheelControl.exe --simulate         # симуляция, руль не трогается
+.\publish\WheelControl.exe                    # реальный руль (от администратора!)
+.\publish\WheelControl.exe --simulate         # симуляция, руль не трогается
 ```
 
 Старт: `Waiting for device...` → `Connected device: [ID]`.
@@ -254,7 +254,7 @@ $b = [Text.Encoding]::UTF8.GetBytes('0')     # в центр
 ## Структура
 
 - `Program.cs` — точка входа, ожидание устройства, диспетчер команд, завершение;
-- `MozaWheel.cs` — обёртка SDK: подключение, цикл 200 Гц, hold, безопасное завершение;
+- `Wheel.cs` — обёртка SDK: подключение, цикл 200 Гц, hold, безопасное завершение;
 - `Config.cs` / `config.json` — конфигурация;
 - `Smoothing.cs` — сглаживание цели;
 - `InputHandler.cs` — разбор команд клавиатуры;
