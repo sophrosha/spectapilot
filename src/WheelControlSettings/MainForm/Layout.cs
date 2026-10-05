@@ -29,8 +29,10 @@ internal static class Layout
         // renderer kills the default gradient (spec item 1).
         var menu = new MenuStrip { Dock = DockStyle.Fill, Renderer = new FlatMenuRenderer() };
         var demo = new ToolStripMenuItem("Demo");
-        var language = new ToolStripMenuItem(Strings.T(Strings.Key.Language));
-        var about = new ToolStripMenuItem(Strings.T(Strings.Key.About));
+        // Localized texts are applied by MainForm.ApplyTexts (the single
+        // source, also re-run on every language change); items start empty.
+        var language = new ToolStripMenuItem();
+        var about = new ToolStripMenuItem();
         var languageItems = new List<(string, ToolStripMenuItem)>();
         foreach ((string code, string name) in Strings.Languages)
         {
@@ -78,7 +80,7 @@ internal static class Layout
             WrapContents = false,
             Padding = new Padding(8, 6, 16, 0),
         };
-        var save = new Button { Text = Strings.T(Strings.Key.Save), AutoSize = true };
+        var save = new Button { AutoSize = true }; // text: ApplyTexts
         saveRow.Controls.Add(save);
 
         // Standard StatusStrip with a single text zone on the left (the shared
@@ -155,22 +157,29 @@ internal static class Layout
 
             var label = new Label
             {
-                Text = Strings.ConfigLabel(entry.Key),
                 Dock = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft,
             };
             entry.Control.Dock = DockStyle.Fill;
 
-            // Tooltips follow the UI language and are re-applied together
-            // with the captions on a language change.
-            string tip = Strings.KeyTip(entry.Key);
-            tips.SetToolTip(label, tip);
-            tips.SetToolTip(entry.Control, tip);
+            ApplyFieldText(entry.Key, label, entry.Control, tips);
 
             fields.Add((entry.Key, label, entry.Control));
             table.Controls.Add(label, col, row);
             table.Controls.Add(entry.Control, col + 1, row);
         }
+    }
+
+    // Caption + tooltip for one config field — the single place that maps a
+    // key to its texts. Called when the fields are created (AddFields) and
+    // on every language change (MainForm.ApplyTexts), so the initial build
+    // and the refresh can never drift apart.
+    public static void ApplyFieldText(string key, Label label, Control control, ToolTip tips)
+    {
+        label.Text = Strings.ConfigLabel(key);
+        string tip = Strings.KeyTip(key);
+        tips.SetToolTip(label, tip);
+        tips.SetToolTip(control, tip);
     }
 }
 

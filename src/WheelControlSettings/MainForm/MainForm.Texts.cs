@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Drawing;
 using System.Windows.Forms;
 
@@ -33,13 +32,9 @@ internal sealed partial class MainForm : Form
         _parts.SaveButton.Text = Strings.T(Strings.Key.Save);
         _parts.StatusLabel.Text = string.Empty;
 
-        // Field captions and tooltips follow the current language.
+        // Field captions and tooltips follow the current language — the same
+        // helper the field creation uses, so both can never drift apart.
         foreach ((string key, Label label, Control control) in _fields)
-        {
-            label.Text = Strings.ConfigLabel(key);
-            string tip = Strings.KeyTip(key);
-            _tips.SetToolTip(label, tip);
-            _tips.SetToolTip(control, tip);
-        }
+            WheelControlSettings.Layout.ApplyFieldText(key, label, control, _tips);
     }
 }

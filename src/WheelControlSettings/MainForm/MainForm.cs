@@ -34,7 +34,6 @@ internal sealed partial class MainForm : Form
 
     public MainForm()
     {
-        Text = Strings.T(Strings.Key.Title);
         ClientSize = new Size(720, 520);
         MinimumSize = new Size(720, 520);
 
@@ -51,6 +50,10 @@ internal sealed partial class MainForm : Form
         _entries = ConfigBinding.Build(PathResolver.ConfigPath!);
         _tips = new ToolTip();
         WheelControlSettings.Layout.AddFields(_parts.FieldsTable, _entries, _tips, _fields);
+
+        // Every localized string is applied here (and again on each language
+        // change); Layout.Build only creates the controls.
+        ApplyTexts();
 
         _parts.SaveButton.Click += (_, _) => SaveConfig();
         _parts.AboutItem.Click += (_, _) =>

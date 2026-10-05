@@ -24,7 +24,7 @@ internal static class ConfigBinding
 
     // Numeric ranges mirror Config.Normalize() in the console app; keys outside
     // this table get a wide range so an existing value can always be edited.
-    private static readonly Dictionary<string, (decimal Min, decimal Max)> Ranges = new(StringComparer.Ordinal)
+    private static readonly Dictionary<string, (decimal Min, decimal Max)> _ranges = new(StringComparer.Ordinal)
     {
         ["smoothTimeMs"] = (50, 10_000),
         ["maxTorque"] = (50, 100),
@@ -42,7 +42,7 @@ internal static class ConfigBinding
         ["kdScale"] = (0.1m, 3),
     };
 
-    private static readonly JsonDocumentOptions DocOpts = new()
+    private static readonly JsonDocumentOptions _docOpts = new()
     {
         CommentHandling = JsonCommentHandling.Skip,
         AllowTrailingCommas = true,
@@ -50,7 +50,7 @@ internal static class ConfigBinding
 
     // Two-space indentation matches the hand-written config.json; the relaxed
     // encoder keeps non-ASCII values readable instead of \uXXXX escapes.
-    private static readonly JsonSerializerOptions WriteOpts = new()
+    private static readonly JsonSerializerOptions _writeOpts = new()
     {
         WriteIndented = true,
         Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
@@ -117,7 +117,7 @@ internal static class ConfigBinding
             };
             if (value is not null) root[entry.Key] = value;
         }
-        File.WriteAllText(configPath, root.ToJsonString(WriteOpts));
+        File.WriteAllText(configPath, root.ToJsonString(_writeOpts));
     }
 
     // Persist the language picked in the toolbar (adds the key on first use).
@@ -125,7 +125,7 @@ internal static class ConfigBinding
     {
         JsonObject root = Parse(configPath);
         root[LanguageKey] = JsonValue.Create(code);
-        File.WriteAllText(configPath, root.ToJsonString(WriteOpts));
+        File.WriteAllText(configPath, root.ToJsonString(_writeOpts));
     }
 
     private static Entry? Create(string key, JsonNode? node)
@@ -166,7 +166,7 @@ internal static class ConfigBinding
         int dot = raw.IndexOf('.');
         if (dot >= 0) decimals = Math.Clamp(raw.Length - dot - 1, 1, 2);
 
-        (decimal min, decimal max) = Ranges.TryGetValue(key, out var range)
+        (decimal min, decimal max) = _ranges.TryGetValue(key, out var range)
             ? range
             : (-1_000_000m, 1_000_000m);
 
@@ -184,7 +184,7 @@ internal static class ConfigBinding
 
     private static JsonObject Parse(string configPath)
     {
-        JsonNode? node = JsonNode.Parse(File.ReadAllText(configPath), null, DocOpts);
+        JsonNode? node = JsonNode.Parse(File.ReadAllText(configPath), null, _docOpts);
         return node as JsonObject ?? throw new InvalidDataException("config.json is not a JSON object.");
     }
 }

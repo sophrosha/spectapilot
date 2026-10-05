@@ -43,7 +43,7 @@ internal static partial class Strings
 
     // Per-language data lives in Strings.<lang>.cs (nested Ru/En/Uk/By classes);
     // these registries keep the original by-language lookups unchanged.
-    private static readonly Dictionary<string, Dictionary<Key, string>> Table = new()
+    private static readonly Dictionary<string, Dictionary<Key, string>> _table = new()
     {
         ["ru"] = Ru.Table,
         ["en"] = En.Table,
@@ -52,15 +52,15 @@ internal static partial class Strings
     };
 
     public static string T(Key key) =>
-        Table.TryGetValue(Language, out var texts) && texts.TryGetValue(key, out var text)
+        _table.TryGetValue(Language, out var texts) && texts.TryGetValue(key, out var text)
             ? text
-            : Table["en"][key];
+            : _table["en"][key];
 
     // Per-key field descriptions shown as ToolTips, all four languages —
     // they follow the UI language exactly like the captions (spec: tooltips
     // are localized together with the interface) and are re-applied by
     // MainForm on every language change.
-    private static readonly Dictionary<string, Dictionary<string, string>> Tips = new()
+    private static readonly Dictionary<string, Dictionary<string, string>> _tips = new()
     {
         ["ru"] = Ru.Tips,
         ["en"] = En.Tips,
@@ -69,7 +69,7 @@ internal static partial class Strings
     };
 
     // Fallback prefix for a config key without a description (per language).
-    private static readonly Dictionary<string, string> FallbackTipWord = new(StringComparer.Ordinal)
+    private static readonly Dictionary<string, string> _fallbackTipWord = new(StringComparer.Ordinal)
     {
         ["ru"] = Ru.FallbackTipWord,
         ["en"] = En.FallbackTipWord,
@@ -80,14 +80,14 @@ internal static partial class Strings
     // Localized tooltip for a config key; an unknown key falls back to
     // "<word>: key" in the current language (never empty).
     public static string KeyTip(string key) =>
-        Tips.TryGetValue(Language, out var byKey) && byKey.TryGetValue(key, out var tip)
+        _tips.TryGetValue(Language, out var byKey) && byKey.TryGetValue(key, out var tip)
             ? tip
-            : $"{(FallbackTipWord.TryGetValue(Language, out var word) ? word : "Setting")}: {key}";
+            : $"{(_fallbackTipWord.TryGetValue(Language, out var word) ? word : "Setting")}: {key}";
 
     // Human-readable field captions per language (Step 5, item 4). Keyed by
     // the raw config key; ConfigLabel falls back to the key itself so an
     // unknown/new key never breaks the UI.
-    private static readonly Dictionary<string, Dictionary<string, string>> Captions = new()
+    private static readonly Dictionary<string, Dictionary<string, string>> _captions = new()
     {
         ["ru"] = Ru.Captions,
         ["en"] = En.Captions,
@@ -98,18 +98,18 @@ internal static partial class Strings
     // Caption for a config field label in the current language; the raw key is
     // the fallback so unknown keys still render.
     public static string ConfigLabel(string key) =>
-        Captions.TryGetValue(Language, out var byKey) && byKey.TryGetValue(key, out var label)
+        _captions.TryGetValue(Language, out var byKey) && byKey.TryGetValue(key, out var label)
             ? label
             : key;
 
     // Apply the code stored in config.json; unknown or missing values fall back to the default.
     public static void Load(string? code)
     {
-        if (code is not null && Table.ContainsKey(code)) Language = code;
+        if (code is not null && _table.ContainsKey(code)) Language = code;
     }
 
     public static void Set(string code)
     {
-        if (Table.ContainsKey(code)) Language = code;
+        if (_table.ContainsKey(code)) Language = code;
     }
 }
