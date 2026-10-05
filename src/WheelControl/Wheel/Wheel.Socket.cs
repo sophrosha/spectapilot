@@ -1,10 +1,3 @@
-using System.Diagnostics;
-using System.IO;
-using System.Runtime.InteropServices;
-using System.Text;
-using mozaAPI;
-using static mozaAPI.mozaAPI; // installMozaSDK, getHIDData, createWheelbaseETConstantForce, ...
-
 namespace WheelControl;
 
 public sealed partial class Wheel : IDisposable
@@ -82,7 +75,7 @@ public sealed partial class Wheel : IDisposable
                         _holdRamp = 0f;
                         _holdActive = true;
                         _pendingValid = false;
-                        float pos0 = _simulated ? _simPos : (_hasPos ? _lastPos : float.NaN);
+                        float pos0 = SnapshotPos();
                         if (!float.IsNaN(pos0)) _smoothing.SnapTo(pos0);
                         _holdPos = float.IsNaN(pos0) ? clamped : pos0; // start at the current one — the EMA brings it to the target
                         printEngage = !_simulated; // hardware: exactly ONE line when control is taken over

@@ -1,7 +1,3 @@
-using System.Diagnostics;
-using System.IO;
-using System.Runtime.InteropServices;
-using System.Text;
 using mozaAPI;
 using static mozaAPI.mozaAPI; // installMozaSDK, getHIDData, createWheelbaseETConstantForce, ...
 
@@ -48,7 +44,7 @@ public sealed partial class Wheel : IDisposable
             // Return without "jumping to the old side": if the smoothed point
             // is on a different side of the wheel than the new target (or target = wheel) — jump
             // to the current angle. Otherwise after "0" the wheel would first go up to the old target.
-            float pos = _simulated ? _simPos : (_hasPos ? _lastPos : float.NaN);
+            float pos = SnapshotPos();
             if (!float.IsNaN(pos) &&
                 (_smoothing.Current - pos) * (clamped - pos) <= 0f &&
                 MathF.Abs(_smoothing.Current - pos) > 0.01f)

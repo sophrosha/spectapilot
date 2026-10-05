@@ -1,10 +1,3 @@
-using System.Diagnostics;
-using System.IO;
-using System.Runtime.InteropServices;
-using System.Text;
-using mozaAPI;
-using static mozaAPI.mozaAPI; // installMozaSDK, getHIDData, createWheelbaseETConstantForce, ...
-
 namespace WheelControl;
 
 public sealed partial class Wheel : IDisposable
@@ -26,7 +19,7 @@ public sealed partial class Wheel : IDisposable
 
             // The smoothed point goes to the current angle, the target to the hold position:
             // after release the wheel continues from exactly this position, without drifting to the old side.
-            float pos = _simulated ? _simPos : (_hasPos ? _lastPos : float.NaN);
+            float pos = SnapshotPos();
             if (!float.IsNaN(pos)) _smoothing.SnapTo(pos);
             _smoothing.SetTarget(clamped);
 
@@ -63,6 +56,7 @@ public sealed partial class Wheel : IDisposable
     {
         lock (_gate) { _consoleOverride = false; }
     }
+
     // Smooth hold-target tracking (shared by hardware and sim). Integer degrees from the game give
     // a 0.5° physical staircase: on slow turns τ doubles (the steps are damped harder),
     // and the input slope adds lead = v×τ — the EMA lag on a slope is compensated

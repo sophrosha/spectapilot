@@ -659,3 +659,17 @@ v5 — PASS 10/10 (CSV 601, дедуп: hands ≤2 упоминаний = 1); v6
 одна `hands → -45°`, pos=-22.5, `SetTorque(0)`. Сборка Release/publish:
 0 ошибок 0 предупреждений. Ожидает: прогон на железе (трение/интерполяция 0/0
 + `log 120`), по желанию эксперимент `kpScale: 0.5`.
+
+**Отложено (зафиксировано в Шаге 7c итерации 6, в самой итерации не правится): очевидные дубли в stable-файлах (Config/InputHandler/SocketServer/Smoothing).**
+1. Разбор чисел в двух местах с разной семантикой: `InputHandler.TryParseNumber`
+   (запятая→точка + `InvariantCulture`, консоль/сокет) и `Program/Args.cs:27,30`
+   (инлайновый `float.TryParse(..., NumberStyles.Float, InvariantCulture)` без
+   поддержки запятой, для `--time/--amp`).
+2. Сборка путей от `AppContext.BaseDirectory` в 6 местах: `Config.FilePath`,
+   `Wheel.Log.cs:17`, `AboutForm.cs:43`, `AboutForm.Links.cs:25`, `MainForm.cs:42`,
+   `PathResolver.cs:16` — в Settings есть `PathResolver`, но `AboutForm`/`MainForm`
+   строят путь инлайново.
+3. Minor: одинаковые опции `Split(... | RemoveEmptyEntries | TrimEntries)` в
+   `InputHandler.cs:85` (пробелы) и `SocketServer.cs:69` (переводы строк) — задачи
+   разные, перечислено для полноты.
+`Smoothing.MoveToward` — дублей нет. Разбор отдельно после итерации 6.

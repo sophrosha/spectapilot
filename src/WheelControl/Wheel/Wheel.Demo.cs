@@ -1,10 +1,3 @@
-using System.Diagnostics;
-using System.IO;
-using System.Runtime.InteropServices;
-using System.Text;
-using mozaAPI;
-using static mozaAPI.mozaAPI; // installMozaSDK, getHIDData, createWheelbaseETConstantForce, ...
-
 namespace WheelControl;
 
 public sealed partial class Wheel : IDisposable
@@ -51,7 +44,7 @@ public sealed partial class Wheel : IDisposable
                 _holdRamp = 0f;
                 _holdActive = true;
             }
-            float pos = _simulated ? _simPos : (_hasPos ? _lastPos : float.NaN);
+            float pos = SnapshotPos();
             if (!float.IsNaN(pos)) _smoothing.SnapTo(pos);
             _smoothing.SetTarget(0f);
             _targetSet = false;
@@ -70,7 +63,7 @@ public sealed partial class Wheel : IDisposable
             _demoActive = false;
 
             // Smoothed to the current angle, target to center: returns straight "down", never up.
-            float pos = _simulated ? _simPos : (_hasPos ? _lastPos : float.NaN);
+            float pos = SnapshotPos();
             if (!float.IsNaN(pos)) _smoothing.SnapTo(pos);
             _smoothing.SetTarget(0f);
             _holdPos = 0f;

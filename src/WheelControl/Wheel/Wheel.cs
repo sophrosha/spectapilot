@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
-using System.Text;
 using mozaAPI;
 using static mozaAPI.mozaAPI; // installMozaSDK, getHIDData, createWheelbaseETConstantForce, ...
 
@@ -177,6 +176,10 @@ public sealed partial class Wheel : IDisposable
     private float _userFullLock = 90f;
     private float U2P(float user) => user * (_rangeHalf / _userFullLock);
     private float P2U(float phys) => phys * (_userFullLock / Math.Max(_rangeHalf, 1f));
+
+    // Current position snapshot (callers hold _gate): the simulated angle, or the last
+    // hardware reading — NaN if the wheel has never reported.
+    private float SnapshotPos() => _simulated ? _simPos : (_hasPos ? _lastPos : float.NaN);
 
     // ---- Public state ----
 
