@@ -1,0 +1,14 @@
+<Project>
+  <!-- Shared layout for both apps:
+       - one shared bin/$(Configuration) folder (the spec tree shows bin/Release
+         with both exes and the config next to them);
+       - separate intermediate folders, because both projects sit in the same
+         directory (repository root) and obj/ must not collide. -->
+  <PropertyGroup>
+    <OutputPath>bin\$(Configuration)\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+    <BaseIntermediateOutputPath>obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
+    <MSBuildProjectExtensionsPath>obj\$(MSBuildProjectName)\</MSBuildProjectExtensionsPath>
+  </PropertyGroup>
+</Project>

@@ -1,0 +1,26 @@
+{
+  "debug": false,
+  "uiLanguage": "ru",
+  "smooth": true,
+  "smoothTimeMs": 500,
+  "maxTorque": 100.0,
+  "holdForce": 100.0,
+  "holdPosition": 90.0,
+  "socketPort": 7777,
+  "socketHost": "127.0.0.1",
+  "dataIntervalMs": 33,
+  "socketSmoothTimeMs": 50,
+  "userFullLockDeg": 180.0,
+  "invertSocket": true,
+  "socketHandsMode": true,
+  "socketAutoStart": true,
+  "progressiveHold": true,
+  "lockNudge": true,
+
+  "simulate": false,
+  "maxDegPerSec": 720.0,
+  "holdRampMs": 300,
+  "moveForceLimit": 1500.0,
+  "maxMoveSpeedRpm": 90.0,
+  "forceInvert": false
+}
