@@ -9,3 +9,4 @@ publish/
 *.suo
 osc_log.csv
 *.log
+sdk/
